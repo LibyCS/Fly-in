@@ -1,4 +1,4 @@
-__pychache__
-.mypy_cache
+__pychache__/
+.mypy_cache/
 maps/
 venv

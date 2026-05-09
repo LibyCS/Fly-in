@@ -1,23 +1,27 @@
 MAIN = main.py
 
-install:
-	python3 -m pip install -U flake8 mypy
+venv:
+	@test -d venv || python3 -m venv venv
 
-run:
-	python3 $(MAIN)
+install: venv
+	venv/bin/python3 -m pip install -U flake8 mypy
+	venv/bin/python3 -m pip install matplotlib
 
-debug:
-	python3 -m pdb $(MAIN)
+run: venv
+	venv/bin/python3 $(MAIN) $(FILE)
+
+debug: venv
+	venv/bin/python3 -m pdb $(MAIN)
 
 clean:
 	rm -rf __pycache__ .mypy_cache
 
-lint:
-	flake8 .
-	mypy .
+lint: venv
+	venv/bin/flake8 . --exclude venv
+	venv/bin/mypy . --exclude venv
 
-lint-strict:
-	flake8 .
-	mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+lint-strict: venv
+	venv/bin/flake8 . --exclude venv
+	venv/bin/mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs --exclude venv
 
-.PHONY: install run debug clean lint lint-stict
+.PHONY: venv install run debug clean lint lint-stict

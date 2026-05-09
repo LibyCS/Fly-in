@@ -1,121 +1,114 @@
-from enum import Enum
-from typing import Generator
+from enum import IntEnum
+from typing import Generator, cast
+from parser import DataDict, Hub, Keys, Colour
+import matplotlib as plot
 
 
-class State(Enum):
+class State(IntEnum):
     """
-    Sets open and close states
+    Sets open and blocked states
     """
     OPEN = 0
-    CLOSED = 1
+    BLOCKED = 1
 
 
-class Direction(Enum):
-    """
-    Sets directions to a value
-    """
-    NORTH = 0
-    EAST = 1
-    SOUTH = 2
-    WEST = 3
-
-
-class Colour(Enum):
-    """
-    Sets colour to their respective strings
-    """
-    GREEN = "  \033[42m"
-    YELLOW = "  \033[43m"
-    RED = "  \033[41m"
-    BLUE = "  \033[44m"
-    GREY = "  \033[100m"
-    END = "  \033[0m"
-
-
-class Cell():
-    def __init__(self, x, y) -> None:
+class Node():
+    def __init__(self, name: str, data: Hub) -> None:
         """
-        Initialises cell with these following variables.
+        Initialises node with these following variables.
         """
-        self.coords: list[int, int] = [x, y]
-        self.walls: list[int] = [State.CLOSED] * 4
+        self.name = name
+        self.coords: tuple[int, int] = data["coords"]
         self.zone: str = "normal"
-        self.colour: (None | Colour) = None
+        if "metatdata" in data.keys() and "zone" in data["metadata"]:
+            self.zone = cast(str, data["metadata"]["zone"])
+        self.colour: (None | str) = None
+        if "metadata" in data.keys() and "color" in data["metadata"]:
+            self.colour = cast(str, data["metadata"]["color"])
         self.capacity: int = 1
+        if "metadata" in data.keys() and "max_drones" in data["metadata"]:
+            self.capacity = cast(int, data["metadata"]["max_drones"])
+        self.connection: dict[str, int] = data["connection"]
+        self.state = State.BLOCKED
 
 
-class grid():
-    def __init__(self, row_limits: list, col_limits: list) -> None:
+class Grid():
+    def __init__(self, data: DataDict) -> None:
         """
         Creates an empty grid within row and columns limits
-        and appends new default cells to a list.
+        and appends new default nodes to a list.
         """
-        self.grid: dict[int, list[int, int]]= {}
-        if row_limits[1] > 0:
-            row_limits[1] += 1
-        else:
-            row_limits[1] -= 1
-        if col_limits[1] > 0:
-            col_limits[1] += 1
-        else:
-            col_limits[1] -= 1
-        for y in range(row_limits[0], row_limits[1]):
-            for x in range(col_limits[0], col_limits[1]):
-                self.grid[(x, y)] = Cell(x, y)
+        self.grid: list[Node] = []
+        self.start = data[Keys.START_HUB.value]
+        self.end = data[Keys.END_HUB.value]
+        all_hubs = self.start | self.end | data[Keys.HUB.value]
+        for name, hub in sorted(all_hubs.items(), key=lambda item:
+                                (-item[1]["coords"][1],
+                                 item[1]["coords"][0])):
+            self.grid.append(Node(name, hub))
+
+    def find_node(self, name: str) -> Node:
+        """
+        Finds node and returns node from grids
+        """
+        for node in self.grid:
+            if node.name == name:
+                return node
+        raise ValueError("Error: Could not find node")
 
 
-    def row_slice(self) -> Generator[list[Cell], None, None]:
+    def row_slice(self) -> Generator[list[Node], None, None]:
         """
         yields the row from grid
         """
-        max_x = max(cell.coords[0] for cell in self.grid.values())
-        slice: list[Cell] = []
-        for cell in self.grid.values():
-            if cell.coords[0] != max_x:
-                slice.append(cell)
-            else:
+        max_x = max(node.coords[0] for node in self.grid)
+        slice: list[Node] = []
+        for node in self.grid:
+            slice.append(node)
+            if node.coords[0] == max_x:
                 yield slice
                 slice = []
 
-
-    def visualiser(self):
+    def visualiser(self) -> None:
         """
         prints the layout using terminal ascii
         """
-        try:
-            max_x = max(cell.coords[0] for cell in self.grid.values())
-            min_x = min(cell.coords[0] for cell in self.grid.values())
-        except ValueError:
-            print("Empty")
-            max_x = 0
-        row_gen = self.row_slice()
+
+
+
+
+
+
+
+
+"""         row_gen = self.row_slice()
         for slice in row_gen:
-            for cell in slice:
+            for node in slice:
                 print("+", end="")
-                if cell.walls[Direction.NORTH.value] == State.CLOSED:
+                if node.walls[Direction.NORTH.value] == State.CLOSED:
                     char = "--"
                 else:
                     char = "  "
                 print(char, end="")
             print("+")
-            for cell in slice:
-                if cell.walls[Direction.WEST.value] == State.CLOSED:
+            for node in slice:
+                if node.walls[Direction.WEST.value] == State.CLOSED:
                     char = "|"
                 else:
                     char = " "
                 print(char, end="")
-                if cell.colour == None:
+                if node.colour is None:
                     char = "  "
                 else:
-                    char = cell.colour + Colour.END
+                    char = Colour.get_ansi(node.colour)
                 print(char, end="")
             if slice[-1].walls[Direction.EAST.value] == State.CLOSED:
                 print("|")
             prev = slice
-        for cell in prev:
-            print("+", end="")
-            if cell.walls[Direction.SOUTH.value] is State.CLOSED:
-                print("--", end="")
-            else:
-                print("  ", end="")
-        print("+")
+            for node in prev:
+                print("+", end="")
+                if node.walls[Direction.SOUTH.value] is State.CLOSED:
+                    print("--", end="")
+                else:
+                    print("  ", end="")
+            print("+") """

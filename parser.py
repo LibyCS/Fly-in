@@ -1,6 +1,7 @@
 import sys
 from typing import TypedDict, cast, TextIO
 from enum import Enum
+import matplotlib.colors as colours
 
 
 class Hub(TypedDict, total=False):
@@ -9,7 +10,7 @@ class Hub(TypedDict, total=False):
     """
     coords: tuple[int, int]
     metadata: dict[str, (int | str)]
-    connection: dict[str, int]
+    connection: dict[tuple[str, str], int]
 
 
 class DataDict(TypedDict):
@@ -26,41 +27,9 @@ class Keys(str, Enum):
     """
     Allows dictionary to pass zone as a string literal
     """
-    NB_DRONES = "nb_drones"
     HUB = "hub"
     START_HUB = "start_hub"
     END_HUB = "end_hub"
-    CONNECTION = "connection"
-
-
-class Colour(Enum):
-    """
-    Sets colour to their respective strings
-    """
-    GREEN = ("green", "\033[42m")
-    YELLOW = ("yellow", "\033[43m")
-    RED = ("red", "\033[41m")
-    BLUE = ("blue", "\033[44m")
-    GREY = ("grey", "\033[100m")
-
-    def __init__(self, label: str, ansi: str) -> None:
-        self.label = label
-        self.ansi = ansi
-
-    @staticmethod
-    def validate_colour(colour_check: str) -> bool:
-        for colour in Colour:
-            if colour.label == colour_check:
-                return True
-        return False
-
-    @staticmethod
-    def get_ansi(target_colour: str) -> str:
-        end = "  \033[0m"
-        for colour in Colour:
-            if colour.label == target_colour:
-                break
-        return colour.ansi + end
 
 
 def validate(zone: str, info: str) -> None:
@@ -138,13 +107,13 @@ def validate_meta(zone: str, metadata: str) -> None:
             raise ValueError(f"Error: multiple tags of {data} were found")
         if ((zone == "connection" and data != "max_link_capacity")
            or (zone != "connection" and data not in tags)):
-            print(zone, data)
             raise ValueError(f"Error: {data} is not a valid tag")
         elif data == "zone" and meta[data] not in zone_types:
             raise ValueError("Error: Unknwon zone type was given")
         elif data == "color":
-            if not Colour.validate_colour(meta[data]):
-                raise ValueError("Error: Colour given was not valid")
+            if (meta[data] != "rainbow" and
+               meta[data] not in colours.CSS4_COLORS.keys()):
+                raise ValueError(f"Error: Colour {meta[data]} was not valid")
         elif data == "max_drones":
             try:
                 drones = int(meta[data])
@@ -178,18 +147,26 @@ def build_hub(data: DataDict, zone: Keys, info: str, meta: (None | str) = None
     """
     all_hubs = (list(data["hub"].keys()) + list(data["start_hub"].keys())
                 + list(data["end_hub"].keys()))
-    if zone in [Keys.NB_DRONES]:
-        data[zone.value] = int(info)
-    elif zone in [Keys.START_HUB, Keys.END_HUB, Keys.HUB]:
+    if zone in [Keys.START_HUB, Keys.END_HUB, Keys.HUB]:
         hubs: dict[str, Hub] = cast(dict[str, Hub], data[zone.value])
         hub: Hub = {}
         if "nb_drones" not in data.keys():
             raise ValueError("Error: first line must be the number of"
                              " drones, defined as 'nb_drones: <number>'")
+        if zone == Keys.START_HUB and data[Keys.START_HUB.value]:
+            raise ValueError("Error found 2 or more start hubs")
+        elif zone == Keys.END_HUB and data[Keys.END_HUB.value]:
+            raise ValueError("Error found 2 or more end hubs")
         name, x, y = info.split()
         if name in all_hubs:
             raise ValueError(f"Error: {name} is already a hub")
         hub["coords"] = (int(x), int(y))
+        hub_types: list[Keys] = [Keys.START_HUB, Keys.END_HUB, Keys.HUB]
+        for hub_type in hub_types:
+            for comp_hub in data[hub_type.value].keys():
+                if hub["coords"] == data[hub_type.value][comp_hub]["coords"]:
+                    raise ValueError("Error: hubs cannot share the same"
+                                     "coordinates")
         if meta:
             meta_dict: dict[str, (int | str)] = {}
             meta_list: list[str] = list(meta.split())
@@ -207,27 +184,36 @@ def build_hub(data: DataDict, zone: Keys, info: str, meta: (None | str) = None
             hub["metadata"] = meta_dict
         hub["connection"] = {}
         hubs[name] = hub
-    else:
+
+
+def build_connections(data: DataDict, info: str, meta: (None | str) = None
+                      ) -> None:
+    all_hubs = (list(data["hub"].keys()) + list(data["start_hub"].keys())
+                + list(data["end_hub"].keys()))
+    try:
         hub1, hub2 = map(str.strip, info.split("-"))
-        if "hub" not in data.keys():
-            raise ValueError("Error: No hubs were provided")
-        if (hub1 not in all_hubs or hub2 not in all_hubs):
-            raise ValueError(f"{info} is not a valid connection couldn't find"
-                             " one of the hub")
-        if hub1 == hub2:
-            raise ValueError("Error: Cannot make a connection with itself")
-        capacity = 1
-        if meta:
-            value_index = meta.find("=")
-            value = meta[value_index + 1:]
-            capacity = int(value)
-        hub_types = [Keys.START_HUB.value, Keys.END_HUB.value, Keys.HUB.value]
-        for hub_type in hub_types:
-            for compared_hub in data[hub_type]:
-                if hub1 == compared_hub:
-                    data[hub_type][hub1]["connection"][hub2] = capacity
-                elif hub2 == compared_hub:
-                    data[hub_type][hub2]["connection"][hub1] = capacity
+    except ValueError:
+        raise ValueError(f"Error: Connection {info} is not formatted"
+                         "properly, must be formatted as hub1-hub2")
+    if "hub" not in data.keys():
+        raise ValueError("Error: No hubs were provided")
+    if (hub1 not in all_hubs or hub2 not in all_hubs):
+        raise ValueError(f"{info} is not a valid connection couldn't find"
+                         " one of the hub")
+    if hub1 == hub2:
+        raise ValueError("Error: Cannot make a connection with itself")
+    capacity = 1
+    if meta:
+        value_index = meta.find("=")
+        value = meta[value_index + 1:]
+        capacity = int(value)
+    all_types: list[Keys] = [Keys.START_HUB, Keys.END_HUB, Keys.HUB]
+    for hub_t in all_types:
+        for compared_hub in data[hub_t.value]:
+            if hub1 == compared_hub:
+                data[hub_t.value][hub1]["connection"][(hub1, hub2)] = capacity
+            elif hub2 == compared_hub:
+                data[hub_t.value][hub2]["connection"][(hub1, hub2)] = capacity
 
 
 def parse(fname: TextIO) -> DataDict:
@@ -255,7 +241,12 @@ def parse(fname: TextIO) -> DataDict:
             print(message)
             sys.exit()
         try:
-            build_hub(data, Keys(zone), info, meta)
+            if zone == "nb_drones":
+                data["nb_drones"] = int(info)
+            elif zone != "connection":
+                build_hub(data, Keys(zone), info, meta)
+            else:
+                build_connections(data, info, meta)
         except Exception as message:
             print(message)
             sys.exit()

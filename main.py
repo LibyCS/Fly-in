@@ -11,7 +11,10 @@ def main() -> None:
         raise FileNotFoundError("Error too many files were given"
                                 " Please run as:\nmake run 'input.txt'")
     with open(sys.argv[1]) as f:
-        data = parse(f)
+        try:
+            data = parse(f)
+        except ValueError as message:
+            raise ValueError(message)
     test = Grid(data)
     test.visualiser()
 
@@ -19,6 +22,6 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except FileNotFoundError as message:
+    except (FileNotFoundError, ValueError) as message:
         print(message)
-        sys.exit()
+        sys.exit(1)

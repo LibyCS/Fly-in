@@ -6,6 +6,7 @@ venv:
 install: venv
 	venv/bin/python3 -m pip install -U flake8 mypy
 	venv/bin/python3 -m pip install matplotlib
+	venv/bin/python3 -m pip install pydantic
 
 run: venv
 	venv/bin/python3 $(MAIN) $(FILE)
@@ -14,7 +15,7 @@ debug: venv
 	venv/bin/python3 -m pdb $(MAIN)
 
 clean:
-	rm -rf __pycache__ .mypy_cache
+	rm -rf __pycache__ .mypy_cache visualiser.png
 
 lint: venv
 	venv/bin/flake8 . --exclude venv

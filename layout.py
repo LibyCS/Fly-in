@@ -92,9 +92,15 @@ class Grid():
         raise ValueError("Error: Could not find node")
 
     def scaled(self, coords: tuple[int, int]) -> tuple[int, int]:
+        """
+        Scales the coords so that it looks ok
+        """
         return (coords[0] * self.scale[0], coords[1] * self.scale[1])
 
     def draw_arrow(self, node1: Node, node2: Node) -> None:
+        """
+        draws the arrow appropriate to the scale between 2 nodes
+        """
         start, end = map(self.scaled, [node1.coords, node2.coords])
         shrink: int = 20
         if self.scale[0] > 15:
@@ -107,6 +113,9 @@ class Grid():
                                      connectionstyle="arc3,rad=0.2"))
 
     def connections(self) -> None:
+        """
+        Goes through each node mapping out their parent connections
+        """
         visited: list[Node] = [self.start, self.end]
         queue: list[Node] = []
         for connect in self.start.connection.keys():
@@ -125,7 +134,7 @@ class Grid():
                     queue.append(next_hub)
             queue.remove(current)
             visited.append(current)
-        plt.savefig("layout.png")
+        plt.savefig("visualiser.png")
 
     def visualiser(self) -> None:
         """
@@ -168,6 +177,6 @@ class Grid():
             wrap_name = "\n".join(textwrap.wrap(node.name, width=7))
             axes.text(x, y, wrap_name, ha="center", va="center",
                       color=font_colour, fontsize=fsize)
-            plt.savefig("layout.png")
+            plt.savefig("visualiser.png")
             time.sleep(0.2)
         self.connections()

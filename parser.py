@@ -1,4 +1,3 @@
-import sys
 from typing import TypedDict, cast, TextIO
 from enum import Enum
 import matplotlib.colors as colours
@@ -188,6 +187,10 @@ def build_hub(data: DataDict, zone: Keys, info: str, meta: (None | str) = None
 
 def build_connections(data: DataDict, info: str, meta: (None | str) = None
                       ) -> None:
+    """
+    Takes in the incomplete data dictionary and adds the neccessary
+    connections to the specified hubs
+    """
     all_hubs = (list(data["hub"].keys()) + list(data["start_hub"].keys())
                 + list(data["end_hub"].keys()))
     try:
@@ -223,31 +226,24 @@ def parse(fname: TextIO) -> DataDict:
     """
     data: DataDict = {"nb_drones": 0, "hub": {}, "start_hub": {},
                       "end_hub": {}}
-    for line in fname.readlines():
+    for line in fname:
         line = line.strip()
-        if not line or line[0] == "#":
+        if not line or line.startswith("#"):
             continue
         zone, info = map(str.strip, line.split(":", 1))
         meta = None
-        if "[" and "]" in info:
+        if "[" in info and "]" in info:
             index = info.find("[")
-            meta = info[index + 1: -1].strip()
+            end_index = info.find("]")
+            meta = info[index + 1: end_index].strip()
             info = info[:index].strip()
-        try:
-            validate(zone, info)
-            if meta:
-                validate_meta(zone, meta)
-        except Exception as message:
-            print(message)
-            sys.exit()
-        try:
-            if zone == "nb_drones":
-                data["nb_drones"] = int(info)
-            elif zone != "connection":
-                build_hub(data, Keys(zone), info, meta)
-            else:
-                build_connections(data, info, meta)
-        except Exception as message:
-            print(message)
-            sys.exit()
+        validate(zone, info)
+        if meta is not None:
+            validate_meta(zone, meta)
+        if zone == "nb_drones":
+            data["nb_drones"] = int(info)
+        elif zone == "connection":
+            build_connections(data, info, meta)
+        else:
+            build_hub(data, Keys(zone), info, meta)
     return data

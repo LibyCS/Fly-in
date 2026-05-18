@@ -7,6 +7,7 @@ install: venv
 	venv/bin/python3 -m pip install -U flake8 mypy
 	venv/bin/python3 -m pip install matplotlib
 	venv/bin/python3 -m pip install pydantic
+	venv/bin/python3 -m pip install pytest
 
 run: venv
 	venv/bin/python3 $(MAIN) $(FILE)
@@ -25,4 +26,7 @@ lint-strict: venv
 	venv/bin/flake8 . --exclude venv
 	venv/bin/mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs --exclude venv
 
-.PHONY: venv install run debug clean lint lint-stict
+pytest: install
+	pytest
+
+.PHONY: venv install run debug clean lint lint-stict pytest

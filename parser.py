@@ -38,10 +38,10 @@ def validate_name(name: str) -> None:
     if "_" in name:
         splitted_name = name.split("_")
         for part in splitted_name:
-            if not part.isalnum() or "-" in part:
+            if not part.isalnum():
                 raise ValueError(f"Error: {name} is not valid, it must not"
                                  "contain '-' and must be alphanumeric")
-    elif not name.isalnum() or "-" in name:
+    elif not name.isalnum():
         raise ValueError(f"Error: {name} is not valid, it must not contain"
                          " '-' and must be alphanumeric and can have '_'")
 
@@ -119,10 +119,20 @@ def validate_meta_hub(zone: Keys, metadata: str) -> None:
     keys = []
     for data in metadata.split():
         if "=" in data:
-            key, _ = data.split("=", 1)
+            key, value = data.split("=", 1)
+            if "-" in value:
+                value_list = value.split("-")
+            else:
+                value_list = [value]
+            for part in value_list:
+                if not part.isalnum():
+                    raise ValueError(f"Error: for {zone.value}'s metadata"
+                                     f" the {value} for {key} is invalid"
+                                     " value must be alphanumeric")
         else:
             raise ValueError("Error: Invalid format for metadata in"
-                             f"{zone.value}")
+                             f" {zone.value}: {data}, which must be formatted"
+                             "as '<key>=<value>'")
         if key in keys:
             raise ValueError("Error: duplicate tag was found in "
                              f"{zone.value}")
@@ -295,4 +305,5 @@ def parse(fname: TextIO) -> DataDict:
                 raise ValueError("Error: first line must be the number of"
                                  " drones, defined as 'nb_drones: <number>'")
             build_hub(data, Keys(zone), info, meta)
+    print(data)
     return data

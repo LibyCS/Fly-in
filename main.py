@@ -4,9 +4,12 @@ from layout import Grid
 
 
 def main() -> None:
+    """
+    the main program that calls the necessary functions
+    """
     if len(sys.argv) < 2:
         raise FileNotFoundError("Error: Input File was not given"
-                                " Please run as:\nmake run 'input.txt'")
+                                " Please run as:\nmake run FILE='input.txt'")
     elif len(sys.argv) > 2:
         raise FileNotFoundError("Error too many files were given"
                                 " Please run as:\nmake run 'input.txt'")

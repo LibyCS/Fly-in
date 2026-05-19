@@ -26,7 +26,7 @@ lint-strict: venv
 	venv/bin/flake8 . --exclude venv
 	venv/bin/mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs --exclude venv
 
-pytest: install
-	pytest
+pytest: venv
+	venv/bin/pytest -s
 
 .PHONY: venv install run debug clean lint lint-stict pytest

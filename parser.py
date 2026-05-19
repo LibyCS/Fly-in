@@ -267,8 +267,17 @@ def build_connections(data: DataDict, info: str, meta: (None | str) = None
     for hub_t in all_types:
         for compared_hub in data[hub_t.value]:
             if hub1 == compared_hub:
+                if ((hub1, hub2) in
+                   data[hub_t.value][hub1]["connection"].keys()):
+                    raise ValueError("Error: duplicate connection found"
+                                     f"({hub1}, {hub2})")
+                
                 data[hub_t.value][hub1]["connection"][(hub1, hub2)] = capacity
             elif hub2 == compared_hub:
+                if ((hub1, hub2) in
+                   data[hub_t.value][hub2]["connection"].keys()):
+                    raise ValueError("Error: duplicate connection found for"
+                                     f"({hub1}, {hub2})")
                 data[hub_t.value][hub2]["connection"][(hub1, hub2)] = capacity
 
 
@@ -279,6 +288,7 @@ def parse(fname: TextIO) -> DataDict:
     """
     data: DataDict = {"nb_drones": 0, "hub": {}, "start_hub": {},
                       "end_hub": {}}
+    connections_counter = 0
     for line in fname:
         line = line.strip()
         if not line or line.startswith("#"):
@@ -299,11 +309,16 @@ def parse(fname: TextIO) -> DataDict:
         if zone == "nb_drones":
             data["nb_drones"] = int(info)
         elif zone == "connection":
+            connections_counter += 1
             build_connections(data, info, meta)
         else:
             if "nb_drones" not in data.keys():
                 raise ValueError("Error: first line must be the number of"
                                  " drones, defined as 'nb_drones: <number>'")
+            if connections_counter != 0:
+                raise ValueError("Error: All hubs must first be created"
+                                 " before connections can be initialised.\n"
+                                 "Please reformat the config file so that"
+                                 " all connections are after hubs")
             build_hub(data, Keys(zone), info, meta)
-    print(data)
     return data

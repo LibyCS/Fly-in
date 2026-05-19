@@ -1,5 +1,6 @@
 from parser import parse, Hub, DataDict
 from io import StringIO
+import pytest
 
 
 class TestParser:
@@ -34,34 +35,59 @@ connection: waypoint2-goal"""
             new_text = new_text + line + "\n"
         return new_text
 
-    def hub_testing(self, node: Hub, coords: tuple[int, int],
-                    meta: dict[str, str | int] | None = None,
-                    connect: dict[tuple[str, str], int] | None = None) -> None:
-        assert node["coords"] == coords
-        if meta:
-            if "metadata" in node.keys():
-                assert node["metadata"] == meta
-            else:
-                print("Error")
-        if connect:
-            if "connection" in node.keys():
-                assert node["connection"] == connect
-            else:
-                print("Error")
+    @staticmethod
+    def make_exp_hub(coords: tuple[int, int],
+                     meta: dict[str, str | int] | None = None,
+                     connect: dict[tuple[str, str], int] | None = None
+                     ) -> Hub:
+        exp_hub: Hub = {}
+        exp_hub= {}
+        exp_hub["coords"] = coords
+        if meta is not None:
+            exp_hub["metadata"] = meta
+        if connect is not None:
+            exp_hub["connection"] = connect
+        return exp_hub
 
-    def base_testing(self, text: str, hubs: list[Hub] | str | None = None,
-                     coords: list[tuple[int]] | str | None = None,
-                     meta: list[dict[str, str | int]] | str | None = None,
-                     connects:
-                     list[dict[tuple[str, str], int]] | str | None = None,
-                     target_hub_name: str | None = None) -> None:
+    @staticmethod
+    def update_exp_hub_list(old_list: list[tuple[Hub, str]],
+                            new_hub_list: list[tuple[Hub, str]]) -> None:
+        for new_hub, new_hub_name in new_hub_list:
+            index = 0
+            for _, cur_hub_name in old_list:
+                if new_hub_name == cur_hub_name:
+                    old_list[index] = (new_hub, new_hub_name)
+                    continue
+                index += 1
+
+    @staticmethod
+    def hub_list_testing(validate_hubs: list[tuple[Hub, str]],
+                         exp_hubs: list[tuple[Hub, str]]) -> None:
+        assert len(validate_hubs) == len(exp_hubs)
+        for exp_hub, exp_hub_name in validate_hubs:
+            found = False
+            for validate_hub, validate_hub_name in exp_hubs:
+                if validate_hub_name == exp_hub_name:
+                    assert validate_hub == exp_hub
+                    found = True
+                    break
+            if found is False:
+                raise ValueError(f"Error: Did not find {exp_hub_name}")
+
+    def base_testing(self, text: str, new_exp_hubs: list[tuple[Hub, str]] | str | None = None
+                     ) -> None:
         result = self.make_data(text)
-        start = result["start_hub"]["start"]
-        point1 = result["hub"]["waypoint1"]
-        point2 = result["hub"]["waypoint2"]
-        goal = result["end_hub"]["goal"]
+        validate_hubs: list[tuple[Hub, str]] = []
+        start_name = list(result["start_hub"].keys())
+        end_name = list(result["end_hub"].keys())
+        assert len(start_name) == 1
+        assert len(end_name) == 1
+        validate_hubs.append((result["start_hub"][start_name[0]],
+                              start_name[0]))
+        validate_hubs.append((result["end_hub"][end_name[0]], end_name[0]))
+        for name in result["hub"].keys():
+            validate_hubs.append((result["hub"][name], name))
         hub_names = ["start", "waypoint1", "waypoint2", "goal"]
-        exp_hubs = [start, point1, point2, goal]
         exp_coords = [(0, 0), (1, 0), (2, 0), (3, 0)]
         exp_meta: list[dict[str, str | int] | None
                        ] = [{"color": "green", "max_drones": 3},
@@ -79,28 +105,14 @@ connection: waypoint2-goal"""
                         {("waypoint1", "goal"): 1,
                          ("waypoint2", "goal"): 1}
                         ]
-        if target_hub_name:
-            for index in range(0, len(hub_names)):
-                if target_hub_name == hub_names[index]:
-                    break
-            if target_hub_name != hub_names[index]:
-                index = -1
-            exp_list_type = [exp_hubs, exp_coords, exp_meta, exp_connects]
-            index = 0
-            for list_type in [hubs, coords, meta, connects]:
-                if list_type is not None:
-                    if isinstance(list_type, str):
-                        if list_type != "remove":
-                            raise ValueError("Error: Should be 'remove'")
-                        exp_list_type[index] = {}
-                    elif index != -1:
-                        exp_list_type[index] = list_type[0]
-                    else:
-                        exp_list_type = exp_list_type + list_type
-                index += 1
-        for i in range(0, len(exp_hubs)):
-            self.hub_testing(exp_hubs[i], exp_coords[i], exp_meta[i],
-                             exp_connects[i])
+        exp_hubs: list[tuple[Hub, str]] = []
+        for i in range(0, len(hub_names)):
+            exp_hub = self.make_exp_hub(exp_coords[i],
+                                        exp_meta[i], exp_connects[i])
+            exp_hubs.append((exp_hub, hub_names[i]))
+        if new_exp_hubs is not None:
+            self.update_exp_hub_list(exp_hubs, new_exp_hubs)
+        self.hub_list_testing(validate_hubs, exp_hubs)
 
     def test_base(self) -> None:
         """
@@ -130,5 +142,21 @@ connection: waypoint2-goal"""
         """
         print("Test 3: Testing empty Metdata")
         empty_meta = self.edit_line(self.DEFAULT, 3, "start_hub: start 0 0 []")
-        self.base_testing(empty_meta, meta="remove", target_hub_name="start")
-        print("OK")
+        new_start = self.make_exp_hub((0, 0), connect={("start", "waypoint1"): 3})
+        self.base_testing(empty_meta, [(new_start, "start")])
+        print("[OK]")
+    
+    def test_wrong_coords(self) -> None:
+        """
+        Testing no coords, 1 coords and more than 3 coords, wrong coords
+        for all types of hubs
+        """
+        print("---Invalid Coords---")
+        print("Test 1: No coords")
+        no_coords = self.edit_line(self.DEFAULT, 3, "start_hub: start ")
+        new_start = self.make_exp_hub((0, 0), connect={("start", "waypoint1"): 3})
+        with pytest.raises(ValueError) as message:
+            self.make_data(no_coords)
+        print(message.value)
+        print("[OK]")
+

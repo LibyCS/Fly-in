@@ -182,6 +182,11 @@ connection: waypoint2-goal"""
         print("Test 3: No nb_drone value - Expecting nb_drones Value Error")
         no_drone_value = self.edit_line(self.DEFAULT, 3, "nb_drones:")
         self.error_testing(no_drone_value, "nb_drone's value")
+        print("Test 4: End with too little capacit - Expecting drones Error")
+        end_err = self.edit_line(self.DEFAULT, 6, "end_hub: end 3 0"
+                                 " [max_drones=1]")
+        self.error_testing(end_err, "Zone is too restricted to handle all "
+                           "drones in start/end hub")
 
     def test_hub_name(self) -> None:
         """
@@ -226,6 +231,10 @@ connection: waypoint2-goal"""
         commas = self.edit_line(self.DEFAULT, 3,
                                 "start_hub: start 0, 0")
         self.error_testing(commas, "cannot be seperated by commas")
+        print("Test 6: Same coords - Expecting Error")
+        same_coords = self.edit_line(self.DEFAULT, 3,
+                                     "start_hub: start 3 0")
+        self.error_testing(same_coords)
 
     def test_connection(self) -> None:
         """
@@ -299,7 +308,7 @@ connection: waypoint2-goal"""
         print("Test 4: No value in metadata - Expecting Metakey Error")
         empty_value = self.edit_line(self.DEFAULT, 3,
                                      "start_hub: start 0 0 "
-                                     "[color= capacity= zone=]")
+                                     "[color= zone= max_drones]")
         self.error_testing(empty_value, "invalid value")
         print("Test 5: Wrong Meta Value - Expecting Metakey Value Error")
         wrong_value = self.edit_line(self.DEFAULT, 3,

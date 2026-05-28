@@ -246,7 +246,7 @@ def build_hub(data: DataDict, zone: Keys, info: str, meta: (None | str) = None
         for comp_hub in data[hub_type.value].keys():
             if hub["coords"] == data[hub_type.value][comp_hub]["coords"]:
                 raise ValueError("Error: hubs cannot share the same"
-                                 "coordinates")
+                                 " coordinates")
     if meta:
         meta_dict: dict[str, int | str] = {}
         meta_list: list[str] = list(meta.split())

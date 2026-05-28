@@ -79,6 +79,9 @@ def validate_hub(info: str) -> None:
         int(x)
         int(y)
     except ValueError:
+        if "," in x or "," in y:
+            raise ValueError(f"Error: {name}'s coords {x} {y} "
+                             "cannot be seperated by commas")
         raise ValueError(f"Error: {name} ({x}, {y}) does not have"
                          " valid coordinates, must be of type int")
 
@@ -91,7 +94,8 @@ def validate_connect(info: str) -> None:
         raise ValueError(f"Error: Could not find '-' in connection: '{info}'")
     parts = info.split("-")
     if len(parts) != 2:
-        raise ValueError("Error: Connection should only have 2 parts")
+        raise ValueError("Error: Connection name should only have 2 parts"
+                         "\nPlease make sure there is only 1 '-'")
     for string in info.split("-"):
         validate_name(string)
 
@@ -103,6 +107,13 @@ def check_isolated_node(data: DataDict) -> None:
             if not data[hub_type.value][hub]["connection"]:
                 raise ValueError(f"Error: '{hub}' hub is "
                                  "isolated and has no connections")
+
+
+def check_start_end(data: DataDict) -> None:
+    if not data[Keys.START_HUB.value]:
+        raise ValueError("Error: No start hub was found")
+    elif not data[Keys.END_HUB.value]:
+        raise ValueError("Error: No end hub was found")
 
 
 def validate_base(zone: str, info: str) -> None:
@@ -288,7 +299,6 @@ def build_connections(data: DataDict, info: str, meta: (None | str) = None
                    data[hub_t.value][hub1]["connection"].keys()):
                     raise ValueError("Error: duplicate connection found"
                                      f"({hub1}, {hub2})")
-                
                 data[hub_t.value][hub1]["connection"][(hub1, hub2)] = capacity
             elif hub2 == compared_hub:
                 if ((hub1, hub2) in
@@ -343,4 +353,5 @@ def parse(fname: TextIO) -> DataDict:
                                  " all connections are after hubs")
             build_hub(data, Keys(zone), info, meta)
     check_isolated_node(data)
+    check_start_end(data)
     return data

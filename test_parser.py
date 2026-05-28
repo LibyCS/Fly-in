@@ -41,7 +41,6 @@ connection: waypoint2-goal"""
                      connect: dict[tuple[str, str], int] | None = None
                      ) -> Hub:
         exp_hub: Hub = {}
-        exp_hub= {}
         exp_hub["coords"] = coords
         if meta is not None:
             exp_hub["metadata"] = meta
@@ -74,7 +73,8 @@ connection: waypoint2-goal"""
             if found is False:
                 raise ValueError(f"Error: Did not find {exp_hub_name}")
 
-    def base_testing(self, text: str, new_exp_hubs: list[tuple[Hub, str]] | str | None = None
+    def base_testing(self, text: str,
+                     new_exp_hubs: list[tuple[Hub, str]] | None = None
                      ) -> None:
         result = self.make_data(text)
         validate_hubs: list[tuple[Hub, str]] = []
@@ -113,7 +113,7 @@ connection: waypoint2-goal"""
         if new_exp_hubs is not None:
             self.update_exp_hub_list(exp_hubs, new_exp_hubs)
         self.hub_list_testing(validate_hubs, exp_hubs)
-    
+
     def error_testing(self, text: str, err_message: str | None = None
                       ) -> None:
         with pytest.raises(ValueError, match=err_message) as error:
@@ -129,13 +129,15 @@ connection: waypoint2-goal"""
         print("\nTest 1: Valid Configuration")
         self.base_testing(self.DEFAULT)
         print("[OK]")
+        print("Test 2: Empty File - Expect Error")
+        self.error_testing("", "No start hub was found")
 
     def test_whitespaces(self) -> None:
         """
         Testing leading and trailing Valid Whitespaces
         with whitespaces in metadata
         """
-        print("Test 2: Valid Whitespaces")
+        print("Test 3: Valid Whitespaces")
         meta_space = self.DEFAULT.replace("[", "  [  ")
         meta_space = meta_space.replace("]", "  ]  ")
         whitespace_text = ""
@@ -160,7 +162,11 @@ connection: waypoint2-goal"""
         print("Test 3: No hub type - Expecting Hub type Error")
         no_hub_type = self.edit_line(self.DEFAULT, 3, "start")
         self.error_testing(no_hub_type)
-    
+        print("Test 4: No start - Expecting Hub type Error")
+        no_start = self.edit_line(self.DEFAULT, 3, "")
+        no_start = self.edit_line(no_start, 8, "")
+        self.error_testing(no_start, "No start hub was found")
+
     def test_nb_drones(self) -> None:
         """
         Testing wrong nb_drone values
@@ -191,7 +197,6 @@ connection: waypoint2-goal"""
         self.error_testing(no_hub_name, "Invalid number of arguments were"
                            " given")
 
-
     def test_wrong_coords(self) -> None:
         """
         Testing no coords, 1 coords and more than 3 coords, wrong coords
@@ -217,9 +222,12 @@ connection: waypoint2-goal"""
                                         " 2")
         self.error_testing(invalid_coords, "does not have valid coordinates,"
                            " must be of type int")
+        print("Test 5: Commas - Expecting Invalid Coords Error")
+        commas = self.edit_line(self.DEFAULT, 3,
+                                "start_hub: start 0, 0")
+        self.error_testing(commas, "cannot be seperated by commas")
 
-
-    def test_connectiosn(self) -> None:
+    def test_connection(self) -> None:
         """
         Testing invalid connections as well as making sure each
         node has a connection
@@ -234,7 +242,8 @@ connection: waypoint2-goal"""
         self.error_testing(isolated_node, "isolated and has no connections")
         print("Test 3: Wrong hub for connection - Expecting Hub not"
               " found Error")
-        wrong_hub = self.edit_line(self.DEFAULT, 8, "connection: start-waypoint3")
+        wrong_hub = self.edit_line(self.DEFAULT, 8, "connection: "
+                                   "start-waypoint3")
         self.error_testing(wrong_hub, "couldn't find one of the hubs")
         print("Test 4: Wrong metakey for connection - Expecting Invalid"
               " Metadata Error")
@@ -260,7 +269,11 @@ connection: waypoint2-goal"""
                                        "connection: start-goal")
         self.error_testing(first_connect, "valid connection couldn't "
                            "find one of the hubs")
-
+        print("Test 8: Invalid Connection name - Expecting Connection Error")
+        invalid_name = self.edit_line(self.DEFAULT, 2,
+                                      "connection: start--goal")
+        self.error_testing(invalid_name, "Connection name should "
+                           "only have 2 parts")
 
     def test_meta(self) -> None:
         """
@@ -276,20 +289,46 @@ connection: waypoint2-goal"""
         print("[OK]")
         print("Test 2: Wrong Metakey - Expecting Metakey Error")
         wrong_meta_value = self.edit_line(self.DEFAULT, 3,
-                                    "start_hub: start 0 0 "
-                                    "[max_link_capacity=3]")
-        self.error_testing(wrong_meta_value)
+                                          "start_hub: start 0 0 "
+                                          "[max_link_capacity=3]")
+        self.error_testing(wrong_meta_value, "not a valid tag")
         print("Test 3: Invalid format for metadata - Expecting Metakey Error")
         invaild_format = self.edit_line(self.DEFAULT, 3,
                                         "start_hub: start 0 0 [=3]")
-        self.error_testing(invaild_format)
+        self.error_testing(invaild_format, "No metadata key was given")
         print("Test 4: No value in metadata - Expecting Metakey Error")
         empty_value = self.edit_line(self.DEFAULT, 3,
-                                    "start_hub: start 0 0 "
-                                    "[color= capacity=]")
-        self.error_testing(empty_value)
+                                     "start_hub: start 0 0 "
+                                     "[color= capacity= zone=]")
+        self.error_testing(empty_value, "invalid value")
         print("Test 5: Wrong Meta Value - Expecting Metakey Value Error")
         wrong_value = self.edit_line(self.DEFAULT, 3,
+                                     "start_hub: start 0 0 "
+                                     "[color=green zone=restricted]")
+        self.error_testing(wrong_value, "can only have a normal zone")
+        print("Test 6: Same meta Key given - Expecting Meta Error")
+        same_meta = self.edit_line(self.DEFAULT, 3,
+                                   "start_hub: start 0 0 "
+                                   "[color=green color=blue]")
+        self.error_testing(same_meta, "duplicate tag")
+        print("Test 7: 4 Meta Keys given - Expecting Meta Error")
+        four_keys = self.edit_line(self.DEFAULT, 3,
+                                   "start_hub: start 0 0 "
+                                   "[color=green zone=restricted"
+                                   " capacity=3 max_link_capacity=4]")
+        self.error_testing(four_keys, "Too many tags")
+        print("Test 8: Invalid Zone - Expecting Meta Error")
+        zone_error = self.edit_line(self.DEFAULT, 3,
                                     "start_hub: start 0 0 "
-                                    "[color=green zone=restricted]")
-        self.error_testing(wrong_value)
+                                    "[color=green zone=norm]")
+        self.error_testing(zone_error, "Unknown zone type")
+        print("Test 9: Missing Bracket - Expecting Meta Error")
+        brackets_error = self.edit_line(self.DEFAULT, 3,
+                                        "start_hub: start 0 0 "
+                                        "[color=green zone=normal")
+        self.error_testing(brackets_error, "Invalid number of arguments")
+        print("Test 10: Meta before hub - Expecting Meta Error")
+        meta_before_hub = self.edit_line(self.DEFAULT, 3,
+                                         "[color=green zone=normal]"
+                                         "start_hub: start 0 0 ")
+        self.error_testing(meta_before_hub, "not a valid hub type")

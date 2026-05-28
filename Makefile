@@ -16,7 +16,7 @@ debug: venv
 	venv/bin/python3 -m pdb $(MAIN)
 
 clean:
-	rm -rf __pycache__ .mypy_cache visualiser.png
+	rm -rf __pycache__ .mypy_cache visualiser.png .pytest_cache
 
 lint: venv
 	venv/bin/flake8 . --exclude venv

@@ -166,6 +166,9 @@ connection: waypoint2-goal"""
         no_start = self.edit_line(self.DEFAULT, 3, "")
         no_start = self.edit_line(no_start, 8, "")
         self.error_testing(no_start, "No start hub was found")
+        print("Test 5: Double start - Expecting Hub type Error")
+        no_start = self.edit_line(self.DEFAULT, 7, "end_hub: start 1 0")
+        self.error_testing(no_start, "Found 2 or more")
 
     def test_nb_drones(self) -> None:
         """
@@ -173,14 +176,14 @@ connection: waypoint2-goal"""
         """
         print("\n---Testing Invalid nb_drones---")
         print("Test 1: Invalid nb_drones - Expecting nb_drones Value Error")
-        wrong_drone_value = self.edit_line(self.DEFAULT, 3, "nb_drones: hub")
+        wrong_drone_value = self.edit_line(self.DEFAULT, 1, "nb_drones: hub")
         self.error_testing(wrong_drone_value, "nb_drone's value")
         print("Test 2: Negative nb_drone value - "
               "Expecting nb_drones Value Error")
-        negative_drone_value = self.edit_line(self.DEFAULT, 3, "nb_drones: -1")
+        negative_drone_value = self.edit_line(self.DEFAULT, 1, "nb_drones: -1")
         self.error_testing(negative_drone_value, "> 0")
         print("Test 3: No nb_drone value - Expecting nb_drones Value Error")
-        no_drone_value = self.edit_line(self.DEFAULT, 3, "nb_drones:")
+        no_drone_value = self.edit_line(self.DEFAULT, 1, "nb_drones:")
         self.error_testing(no_drone_value, "nb_drone's value")
         print("Test 4: End with too little capacit - Expecting drones Error")
         end_err = self.edit_line(self.DEFAULT, 6, "end_hub: end 3 0"
@@ -319,7 +322,7 @@ connection: waypoint2-goal"""
         same_meta = self.edit_line(self.DEFAULT, 3,
                                    "start_hub: start 0 0 "
                                    "[color=green color=blue]")
-        self.error_testing(same_meta, "duplicate tag")
+        self.error_testing(same_meta, "Duplicate tag")
         print("Test 7: 4 Meta Keys given - Expecting Meta Error")
         four_keys = self.edit_line(self.DEFAULT, 3,
                                    "start_hub: start 0 0 "

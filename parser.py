@@ -39,10 +39,10 @@ def validate_name(name: str) -> None:
         splitted_name = name.split("_")
         for part in splitted_name:
             if not part.isalnum():
-                raise ValueError(f"Error: {name} is not valid, it must not"
+                raise ValueError(f"{name} is not valid, it must not"
                                  "contain '-' and must be alphanumeric")
     elif not name.isalnum():
-        raise ValueError(f"Error: {name} is not valid, it must not contain"
+        raise ValueError(f"{name} is not valid, it must not contain"
                          " '-' and must be alphanumeric and can have '_'")
 
 
@@ -53,10 +53,10 @@ def validate_drones(info: str) -> None:
     try:
         value_int = int(info)
     except ValueError:
-        raise ValueError(f"Error: nb_drone's value: '{info}' is not of"
+        raise ValueError(f"nb_drone's value: '{info}' is not of"
                          " type int")
     if value_int < 1:
-        raise ValueError("Error: Number of drones must be > 0")
+        raise ValueError("Number of drones must be > 0")
 
 
 def validate_hub(info: str) -> None:
@@ -67,7 +67,7 @@ def validate_hub(info: str) -> None:
     try:
         name, x, y = info.split()
     except ValueError:
-        raise ValueError("Error: Invalid number of arguments were given"
+        raise ValueError("Invalid number of arguments were given"
                          f" for the hub {info}, please format it as such:\n"
                          "<hub type>: <hub name> <x> <y> ([metadata])\n"
                          "Hub type must either be start_hub, end_hub or hub\n"
@@ -80,9 +80,9 @@ def validate_hub(info: str) -> None:
         int(y)
     except ValueError:
         if "," in x or "," in y:
-            raise ValueError(f"Error: {name}'s coords {x} {y} "
+            raise ValueError(f"{name}'s coords {x} {y} "
                              "cannot be seperated by commas")
-        raise ValueError(f"Error: {name} ({x}, {y}) does not have"
+        raise ValueError(f"{name} ({x}, {y}) does not have"
                          " valid coordinates, must be of type int")
 
 
@@ -91,10 +91,10 @@ def validate_connect(info: str) -> None:
     checks connect is valid and obeys naming convention
     """
     if "-" not in info:
-        raise ValueError(f"Error: Could not find '-' in connection: '{info}'")
+        raise ValueError(f"Could not find '-' in connection: '{info}'")
     parts = info.split("-")
     if len(parts) != 2:
-        raise ValueError("Error: Connection name should only have 2 parts"
+        raise ValueError("Connection name should only have 2 parts"
                          "\nPlease make sure there is only 1 '-'")
     for string in info.split("-"):
         validate_name(string)
@@ -130,7 +130,7 @@ def validate_base(zone: str, info: str) -> None:
     elif zone == "connection":
         validate_connect(info)
     else:
-        raise ValueError(f"Error: '{zone}' is not a valid hub type, must be"
+        raise ValueError(f"'{zone}' is not a valid hub type, must be"
                          " nb_drones, start_hub, end_hub, hub or connection")
 
 
@@ -151,38 +151,38 @@ def validate_meta_hub(zone: Keys, metadata: str) -> None:
                 value_list = [value]
             for part in value_list:
                 if not part.isalnum():
-                    raise ValueError(f"Error: for {zone.value}'s metadata"
+                    raise ValueError(f"For {zone.value}'s metadata"
                                      f" the '{value}' for '{key}' is invalid"
                                      " value must be alphanumeric")
         else:
-            raise ValueError("Error: Invalid format for metadata in"
+            raise ValueError("Invalid format for metadata in"
                              f" {zone.value}: {data}, which must be formatted"
                              "as '<key>=<value>'")
         if key in keys:
-            raise ValueError("Error: duplicate tag was found in "
+            raise ValueError("Duplicate tag was found in "
                              f"{zone.value}")
         keys.append(key)
     try:
         meta = dict(data.split("=") for data in metadata.split())
     except ValueError:
-        raise ValueError(f"Error: Tags for the metadata of {zone.value}"
+        raise ValueError(f"Tags for the metadata of {zone.value}"
                          " has invalid format")
     if '' in meta.keys():
-        raise ValueError(f"Error: No metadata key was given in '{metadata}'")
+        raise ValueError(f"No metadata key was given in '{metadata}'")
     if len(meta) > 3:
-        raise ValueError("Error: Too many tags were given")
+        raise ValueError("Too many tags were given")
     for data in meta.keys():
         if metadata.count(data) != 1:
-            raise ValueError(f"Error: multiple tags of '{data}' were found")
+            raise ValueError(f"Multiple tags of '{data}' were found")
         if data not in tags:
-            raise ValueError(f"Error: {data} for {zone.value} is"
+            raise ValueError(f"{data} for {zone.value} is"
                              " not a valid tag")
         elif data == "zone" and meta[data] not in zone_types:
-            raise ValueError("Error: Unknown zone type was given")
+            raise ValueError("Unknown zone type was given")
         elif data == "color":
             if (meta[data] != "rainbow" and
                meta[data] not in colours.CSS4_COLORS):
-                raise ValueError(f"Error: Colour {meta[data]} was not valid")
+                raise ValueError(f"Colour {meta[data]} was not valid")
         elif data == "max_drones":
             try:
                 drones = int(meta[data])
@@ -193,7 +193,7 @@ def validate_meta_hub(zone: Keys, metadata: str) -> None:
                 raise ValueError(f"{meta[data]} for {zone} must  be > 1")
         if (zone in (Keys.START_HUB, Keys.END_HUB)
            and data == "zone" and meta[data] != "normal"):
-            raise ValueError(f"Error: '{zone.value}' can only have a"
+            raise ValueError(f"'{zone.value}' can only have a"
                              " normal zone")
 
 
@@ -205,22 +205,22 @@ def validate_meta_connect(metadata: str) -> None:
     try:
         meta = dict(data.split("=") for data in metadata.split())
     except ValueError:
-        raise ValueError("Error: Tag for the metadata of connection"
+        raise ValueError("Tag for the metadata of connection"
                          " has invalid format")
     if len(meta) > 1:
-        raise ValueError("Error: Too many tags were given for connections")
+        raise ValueError("Too many tags were given for connections")
     for data in meta.keys():
         if metadata.count(data) != 1:
-            raise ValueError(f"Error: multiple tags of {data} were found")
+            raise ValueError(f"Multiple tags of {data} were found")
         if data != "max_link_capacity":
-            raise ValueError("Error: Connections can only have the "
+            raise ValueError("Connections can only have the "
                              "the tag max_link_capacity=<number>")
         try:
             capacity = int(meta[data])
             if capacity < 1:
                 raise ValueError
         except ValueError:
-            raise ValueError("Error: max_link_capacity must be a"
+            raise ValueError("max_link_capacity must be a"
                              " valid positive int >= 1")
 
 
@@ -233,19 +233,19 @@ def build_hub(data: DataDict, zone: Keys, info: str, meta: (None | str) = None
     hubs: dict[str, Hub] = data[zone.value]
     hub: Hub = {}
     if zone == Keys.START_HUB and data[Keys.START_HUB.value]:
-        raise ValueError("Error found 2 or more start hubs")
+        raise ValueError("Found 2 or more start hubs")
     elif zone == Keys.END_HUB and data[Keys.END_HUB.value]:
-        raise ValueError("Error found 2 or more end hubs")
+        raise ValueError("Found 2 or more end hubs")
     name, x, y = info.split()
     if (name in data[Keys.START_HUB.value] or name in data[Keys.END_HUB.value]
        or name in data[Keys.HUB.value]):
-        raise ValueError(f"Error: {name} is already a hub")
+        raise ValueError(f"Duplicate hub found, {name} is already a hub")
     hub["coords"] = (int(x), int(y))
     hub_types: list[Keys] = list(Keys)
     for hub_type in hub_types:
         for comp_hub in data[hub_type.value].keys():
             if hub["coords"] == data[hub_type.value][comp_hub]["coords"]:
-                raise ValueError("Error: hubs cannot share the same"
+                raise ValueError("Hubs cannot share the same"
                                  " coordinates")
     if meta:
         meta_dict: dict[str, int | str] = {}
@@ -259,7 +259,7 @@ def build_hub(data: DataDict, zone: Keys, info: str, meta: (None | str) = None
         if ((zone in (Keys.START_HUB, Keys.END_HUB))
            and "max_drones" in meta_dict.keys() and
            int(meta_dict["max_drones"]) < data["nb_drones"]):
-            raise ValueError("Error: Zone is too restricted to handle"
+            raise ValueError("Zone is too restricted to handle"
                              " all drones in start/end hub")
         hub["metadata"] = meta_dict
     hub["connection"] = {}
@@ -277,15 +277,15 @@ def build_connections(data: DataDict, info: str, meta: (None | str) = None
     try:
         hub1, hub2 = map(str.strip, info.split("-"))
     except ValueError:
-        raise ValueError(f"Error: Connection {info} is not formatted"
+        raise ValueError(f"Connection {info} is not formatted"
                          "properly, must be formatted as hub1-hub2")
     if "hub" not in data.keys():
-        raise ValueError("Error: No hubs were provided")
+        raise ValueError("No hubs were provided")
     if (hub1 not in all_hubs or hub2 not in all_hubs):
         raise ValueError(f"{info} is not a valid connection couldn't find"
                          " one of the hubs")
     if hub1 == hub2:
-        raise ValueError("Error: Cannot make a connection with itself")
+        raise ValueError("Cannot make a connection with itself")
     capacity = 1
     if meta:
         value_index = meta.find("=")
@@ -296,16 +296,55 @@ def build_connections(data: DataDict, info: str, meta: (None | str) = None
         for compared_hub in data[hub_t.value]:
             if hub1 == compared_hub:
                 if ((hub1, hub2) in
+                   data[hub_t.value][hub1]["connection"].keys()
+                   or (hub2, hub1) in
                    data[hub_t.value][hub1]["connection"].keys()):
-                    raise ValueError("Error: duplicate connection found"
+                    raise ValueError("Duplicate connection found"
                                      f"({hub1}, {hub2})")
                 data[hub_t.value][hub1]["connection"][(hub1, hub2)] = capacity
             elif hub2 == compared_hub:
                 if ((hub1, hub2) in
+                   data[hub_t.value][hub2]["connection"].keys()
+                   or (hub2, hub1) in
                    data[hub_t.value][hub2]["connection"].keys()):
-                    raise ValueError("Error: duplicate connection found for"
+                    raise ValueError("Duplicate connection found"
                                      f"({hub1}, {hub2})")
                 data[hub_t.value][hub2]["connection"][(hub1, hub2)] = capacity
+
+
+def extraction(line: str, data: DataDict, connect_nb: int) -> None:
+    try:
+        zone, info = map(str.strip, line.split(":", 1))
+    except ValueError:
+        raise ValueError(f"For '{line}' the hub type must have"
+                         " ':' proceeding it to identify the hub_type")
+    meta = None
+    if "[" in info and "]" in info:
+        index = info.find("[")
+        end_index = info.find("]")
+        meta = info[index + 1: end_index].strip()
+        info = info[:index].strip()
+    validate_base(zone, info)
+    if meta is not None and meta.strip() != "":
+        if zone == "connection":
+            validate_meta_connect(meta)
+        else:
+            validate_meta_hub(Keys(zone), meta)
+    if zone == "nb_drones":
+        data["nb_drones"] = int(info)
+    elif zone == "connection":
+        connect_nb += 1
+        build_connections(data, info, meta)
+    else:
+        if "nb_drones" not in data.keys():
+            raise ValueError("First line must be the number of"
+                             " drones, defined as 'nb_drones: <number>'")
+        if connect_nb != 0:
+            raise ValueError("All hubs must first be created"
+                             " before connections can be initialised.\n"
+                             "Please reformat the config file so that"
+                             " all connections are after hubs")
+        build_hub(data, Keys(zone), info, meta)
 
 
 def parse(fname: TextIO) -> DataDict:
@@ -315,43 +354,18 @@ def parse(fname: TextIO) -> DataDict:
     """
     data: DataDict = {"nb_drones": 0, "hub": {}, "start_hub": {},
                       "end_hub": {}}
-    connections_counter = 0
+    connect_counter = 0
+    line_nb = 0
     for line in fname:
         line = line.strip()
         if not line or line.startswith("#"):
+            line_nb += 1
             continue
         try:
-            zone, info = map(str.strip, line.split(":", 1))
-        except ValueError:
-            raise ValueError(f"Error: for '{line}' the hub type must have"
-                             " ':' proceeding it to identify the hub_type")
-        meta = None
-        if "[" in info and "]" in info:
-            index = info.find("[")
-            end_index = info.find("]")
-            meta = info[index + 1: end_index].strip()
-            info = info[:index].strip()
-        validate_base(zone, info)
-        if meta is not None and meta.strip() != "":
-            if zone == "connection":
-                validate_meta_connect(meta)
-            else:
-                validate_meta_hub(Keys(zone), meta)
-        if zone == "nb_drones":
-            data["nb_drones"] = int(info)
-        elif zone == "connection":
-            connections_counter += 1
-            build_connections(data, info, meta)
-        else:
-            if "nb_drones" not in data.keys():
-                raise ValueError("Error: first line must be the number of"
-                                 " drones, defined as 'nb_drones: <number>'")
-            if connections_counter != 0:
-                raise ValueError("Error: All hubs must first be created"
-                                 " before connections can be initialised.\n"
-                                 "Please reformat the config file so that"
-                                 " all connections are after hubs")
-            build_hub(data, Keys(zone), info, meta)
+            extraction(line, data, connect_counter)
+        except ValueError as message:
+            raise ValueError(f"Error on line {line_nb}: {message}")
+        line_nb += 1
     check_isolated_node(data)
     check_start_end(data)
     return data

@@ -166,9 +166,9 @@ connection: waypoint2-goal"""
         no_start = self.edit_line(self.DEFAULT, 3, "")
         no_start = self.edit_line(no_start, 8, "")
         self.error_testing(no_start, "No start hub was found")
-        print("Test 5: Double start - Expecting Hub type Error")
-        no_start = self.edit_line(self.DEFAULT, 7, "end_hub: start 1 0")
-        self.error_testing(no_start, "Found 2 or more")
+        print("Test 5: Double end - Expecting Hub type Error")
+        dupe_end = self.edit_line(self.DEFAULT, 7, "end_hub: start 3 0")
+        self.error_testing(dupe_end, "Found 2 or more")
 
     def test_nb_drones(self) -> None:
         """
@@ -204,6 +204,9 @@ connection: waypoint2-goal"""
         no_hub_name = self.edit_line(self.DEFAULT, 3, "start_hub: 3 0")
         self.error_testing(no_hub_name, "Invalid number of arguments were"
                            " given")
+        print("Test 3: Dupe hub_name - Expecting Arguments Error")
+        dupe_hub_name = self.edit_line(self.DEFAULT, 5, "hub: waypoint1 3 0")
+        self.error_testing(dupe_hub_name, "Duplicate hub found")
 
     def test_wrong_coords(self) -> None:
         """

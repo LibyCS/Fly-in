@@ -125,4 +125,3 @@ class Pathfinding():
                         continue
                     print(f"D{drone}-{node.name} ", end="")
             turn += 1
-            print(turn)

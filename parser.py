@@ -134,7 +134,7 @@ def validate_base(zone: str, info: str) -> None:
                          " nb_drones, start_hub, end_hub, hub or connection")
 
 
-def validate_meta_hub(zone: Keys, metadata: str) -> None:
+def validate_meta_hub(zone: str, metadata: str) -> None:
     """
     Checks that metadata if provided has the valid tags and
     correct valid values for hubs
@@ -151,21 +151,21 @@ def validate_meta_hub(zone: Keys, metadata: str) -> None:
                 value_list = [value]
             for part in value_list:
                 if not part.isalnum():
-                    raise ValueError(f"For {zone.value}'s metadata"
+                    raise ValueError(f"For {zone}'s metadata"
                                      f" the '{value}' for '{key}' is invalid"
                                      " value must be alphanumeric")
         else:
             raise ValueError("Invalid format for metadata in"
-                             f" {zone.value}: {data}, which must be formatted"
+                             f" {zone}: {data}, which must be formatted"
                              "as '<key>=<value>'")
         if key in keys:
             raise ValueError("Duplicate tag was found in "
-                             f"{zone.value}")
+                             f"{zone}")
         keys.append(key)
     try:
         meta = dict(data.split("=") for data in metadata.split())
     except ValueError:
-        raise ValueError(f"Tags for the metadata of {zone.value}"
+        raise ValueError(f"Tags for the metadata of {zone}"
                          " has invalid format")
     if '' in meta.keys():
         raise ValueError(f"No metadata key was given in '{metadata}'")
@@ -175,7 +175,7 @@ def validate_meta_hub(zone: Keys, metadata: str) -> None:
         if metadata.count(data) != 1:
             raise ValueError(f"Multiple tags of '{data}' were found")
         if data not in tags:
-            raise ValueError(f"{data} for {zone.value} is"
+            raise ValueError(f"{data} for {zone} is"
                              " not a valid tag")
         elif data == "zone" and meta[data] not in zone_types:
             raise ValueError("Unknown zone type was given")
@@ -187,13 +187,14 @@ def validate_meta_hub(zone: Keys, metadata: str) -> None:
             try:
                 drones = int(meta[data])
             except ValueError:
-                raise ValueError(f"{meta[data]} for {zone} must be a"
-                                 " valid int")
+                raise ValueError(f"{zone} capacity given was{meta[data]}"
+                                 ", must be a valid int")
             if drones < 1:
-                raise ValueError(f"{meta[data]} for {zone} must  be > 1")
+                raise ValueError(f"{zone} capacity given was {meta[data]}"
+                                 ", must be >= 1")
         if (zone in (Keys.START_HUB, Keys.END_HUB)
            and data == "zone" and meta[data] != "normal"):
-            raise ValueError(f"'{zone.value}' can only have a"
+            raise ValueError(f"'{zone}' can only have a"
                              " normal zone")
 
 
@@ -329,7 +330,7 @@ def extraction(line: str, data: DataDict, connect_nb: int) -> None:
         if zone == "connection":
             validate_meta_connect(meta)
         else:
-            validate_meta_hub(Keys(zone), meta)
+            validate_meta_hub(zone, meta)
     if zone == "nb_drones":
         data["nb_drones"] = int(info)
     elif zone == "connection":
@@ -355,7 +356,7 @@ def parse(fname: TextIO) -> DataDict:
     data: DataDict = {"nb_drones": 0, "hub": {}, "start_hub": {},
                       "end_hub": {}}
     connect_counter = 0
-    line_nb = 0
+    line_nb = 1
     for line in fname:
         line = line.strip()
         if not line or line.startswith("#"):

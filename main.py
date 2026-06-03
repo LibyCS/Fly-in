@@ -1,6 +1,7 @@
 import sys
 from parser import parse
-from layout import Grid
+from layout import Grid, GridVisualiser
+from pathfinding import Pathfinding
 
 
 def main() -> None:
@@ -18,8 +19,9 @@ def main() -> None:
             data = parse(f)
         except ValueError as message:
             raise ValueError(message)
-    test = Grid(data)
-    test.visualiser()
+    layout = Grid(data)
+    GridVisualiser(layout).visualiser()
+    Pathfinding(layout).drone_allocation()
 
 
 if __name__ == "__main__":

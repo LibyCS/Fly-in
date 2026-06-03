@@ -34,6 +34,11 @@ class Node():
             self.capacity = cast(int, data["metadata"]["max_drones"])
         self.connection: dict[tuple[str, str], int] = data["connection"]
         self.state = State.BLOCKED
+        self.f: int = 0
+        self.g: int = 0
+        self.h: int = 0
+        self.children: list[Node] = []
+        self.parent: Node | None = None
 
 
 class Grid():
@@ -43,6 +48,12 @@ class Grid():
         and appends new default nodes to a list.
         """
         self.grid: list[Node] = []
+        self.start: Node
+        self.end: Node
+        self.create_grid(data)
+        self.drones = data["nb_drones"]
+
+    def create_grid(self, data: DataDict) -> None:
         start = data[Keys.START_HUB.value]
         end = data[Keys.END_HUB.value]
         all_hubs = start | end | data[Keys.HUB.value]
@@ -51,13 +62,57 @@ class Grid():
                                  item[1]["coords"][0])):
             if name in start:
                 hub_type = "start_hub"
-                self.start = Node(name, hub_type, hub)
+                new_node = self.start = Node(name, hub_type, hub)
             elif name in end:
                 hub_type = "end_hub"
-                self.end = Node(name, hub_type, hub)
+                new_node = self.end = Node(name, hub_type, hub)
             else:
                 hub_type = "hub"
-            self.grid.append(Node(name, hub_type, hub))
+                new_node = Node(name, hub_type, hub)
+            self.grid.append(new_node)
+        self.add_child_parent_nodes()
+
+    def find_node(self, name: str) -> Node:
+        """
+        Finds node and returns node from grids
+        """
+        for node in self.grid:
+            if node.name == name:
+                return node
+        raise ValueError("Error: Could not find node")
+
+    def add_child_parent_nodes(self) -> None:
+        """
+        Finds the nodes and adds them to a list called children
+        to that current node, cycles through all nodes that can be found
+        from start
+        """
+        completed: list[Node] = []
+        queue: list[Node] = []
+        queue.append(self.start)
+        while queue:
+            curr_node = queue[0]
+            for connection in curr_node.connection.keys():
+                if connection[0] != curr_node.name:
+                    target_node = self.find_node(connection[0])
+                else:
+                    target_node = self.find_node(connection[1])
+                curr_node.children.append(target_node)
+                if target_node not in completed:
+                    queue.append(target_node)
+            queue.remove(curr_node)
+            completed.append(curr_node)
+
+
+class GridVisualiser():
+    def __init__(self, layout: Grid) -> None:
+        """
+        Sets variables needed to create the visualiser
+        """
+        self.grid = layout.grid
+        self.start = layout.start
+        self.end = layout.end
+        self.find_node = layout.find_node
         self.xlims = (min(map(lambda node: node.coords[0], self.grid)),
                       max(map(lambda node: node.coords[0], self.grid)))
         self.ylims = (min(map(lambda node: node.coords[1], self.grid)),
@@ -81,15 +136,6 @@ class Grid():
             y_scale = 10
             set_y = 3
         self.scale: list[int] = [x_scale, y_scale, set_x, set_y]
-
-    def find_node(self, name: str) -> Node:
-        """
-        Finds node and returns node from grids
-        """
-        for node in self.grid:
-            if node.name == name:
-                return node
-        raise ValueError("Error: Could not find node")
 
     def scaled(self, coords: tuple[int, int]) -> tuple[int, int]:
         """
@@ -162,10 +208,10 @@ class Grid():
                 fsize = 2
             elif self.scale[0] > 5:
                 size = 500
-                fsize = 3
+                fsize = 5
             if node.type == "start_hub" or node.type == "end_hub":
                 size = size * 1.5
-                fsize = fsize * 1.3
+                fsize = fsize * 2
             if node.colour != "rainbow":
                 axes.scatter(x, y, color=node.colour, s=size)
             else:

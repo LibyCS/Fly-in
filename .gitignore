@@ -2,3 +2,4 @@ __pychache__/
 .mypy_cache/
 maps/
 venv
+.png

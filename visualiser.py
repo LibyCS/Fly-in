@@ -4,7 +4,10 @@ from parser import DataDict, Hub, Keys
 import time
 import textwrap
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.text import Text
 from matplotlib.ticker import MultipleLocator
+from matplotlib.patches import Polygon
 
 
 class State(IntEnum):
@@ -29,7 +32,7 @@ class Node():
         self.colour: (None | str) = None
         if "metadata" in data.keys() and "color" in data["metadata"]:
             self.colour = cast(str, data["metadata"]["color"])
-        self.capacity: int = 1
+        self.capacity: int = 50
         if "metadata" in data.keys() and "max_drones" in data["metadata"]:
             self.capacity = cast(int, data["metadata"]["max_drones"])
         self.connection: dict[tuple[str, str], int] = data["connection"]
@@ -113,6 +116,13 @@ class GridVisualiser():
         self.start = layout.start
         self.end = layout.end
         self.find_node = layout.find_node
+        self.drones = layout.drones
+        self.create_boundaries()
+    
+    def create_boundaries(self) -> None:
+        """
+        Creates boundaries for the graph
+        """
         self.xlims = (min(map(lambda node: node.coords[0], self.grid)),
                       max(map(lambda node: node.coords[0], self.grid)))
         self.ylims = (min(map(lambda node: node.coords[1], self.grid)),
@@ -182,11 +192,11 @@ class GridVisualiser():
             visited.append(current)
         plt.savefig("visualiser.png")
 
-    def visualiser(self) -> None:
+    def visualise_layout(self) -> Axes:
         """
         prints the layout using terminal ascii
         """
-        fig, axes = plt.subplots()
+        _, axes = plt.subplots()
         scaler = self.scale
         axes.set_xlim((self.xlims[0] * scaler[0]) - scaler[2],
                       (self.xlims[1] * scaler[0]) + scaler[2])
@@ -224,5 +234,69 @@ class GridVisualiser():
             axes.text(x, y, wrap_name, ha="center", va="center",
                       color=font_colour, fontsize=fsize)
             plt.savefig("visualiser.png")
-            time.sleep(0.2)
+            time.sleep(0.3)
         self.connections()
+        return axes, self.scale
+
+class DroneVisualiser():
+    def __init__(self, layout: Grid, axes: Axes, scale: list[int]) -> None:
+        from pathfinding import Pathfinding
+        self.turnorder_gen = Pathfinding(layout).turn_generator()
+        self.nb_drones = layout.drones
+        self.axes = axes
+        self.scale = scale
+        self.start_x = layout.start.coords[0] * scale[0]
+        self.start_y = layout.start.coords[1] * scale[1]
+        self.time = 1
+
+    def update_drone_coords(self, coords: tuple[int]) -> list[tuple[int]]:
+        x = coords[0] * self.scale[0]
+        y = coords[1] * self.scale[1]
+        size = 0.2 * self.scale[0]
+        diamond = [(x, y + size),
+                   (x + size, y),
+                   (x, y - size),
+                   (x - size, y)]
+        return diamond
+
+    def create_drones(self) -> None:
+        starting_drone = self.update_drone_coords((self.start_x,
+                                                   self.start_y))
+        self.drones: list[tuple[Polygon, Text]] = ([None]
+                                                   * (self.nb_drones + 1))
+        for drone in range(1, self.nb_drones + 1):
+            template_drone = Polygon(starting_drone, color="grey",
+                                     zorder=(10 + drone))
+            self.axes.add_patch(template_drone)
+            label = self.axes.text(self.start_x, self.start_y,
+                                   "D" + str(drone), ha="center", va="center",
+                                   zorder=(11 + drone))
+            self.drones[drone] = (template_drone, label)
+        plt.savefig("visualiser.png")
+        time.sleep(self.time)
+
+    def move_drone(self, drone_stats: tuple[Polygon, Text], node: Node
+                   ) -> None:
+        drone, label = drone_stats
+        scaled_coords = (node.coords[0] * self.scale[0],
+                         node.coords[1] * self.scale[1])
+        print(f"{label.get_text()}-{node.name} ", end="")
+        drone.set_xy(self.update_drone_coords(node.coords))
+        label.set_position(scaled_coords)
+        plt.savefig("visualiser.png")
+
+    def visualise(self) -> None:
+        self.create_drones()
+        while True:
+            any_moved = False
+            try:
+                incoming_drone = next(self.turnorder_gen)
+                for drone, node in incoming_drone:
+                    any_moved = True
+                    self.move_drone(self.drones[drone], node)
+                    time.sleep(0.5)
+                if any_moved is True:
+                    print()
+                time.sleep(self.time)
+            except StopIteration:
+                break

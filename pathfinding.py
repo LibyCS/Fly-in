@@ -1,6 +1,7 @@
-from layout import Grid, Node
+from visualiser import Grid, Node
 import math
 from typing import cast
+from collections.abc import Generator
 
 
 class Pathfinding():
@@ -112,16 +113,17 @@ class Pathfinding():
             print("\ndrone", drone)
             self.update_timeline(drone, self.a_star())
             drone += 1
-        self.print_turns()
 
-    def print_turns(self) -> None:
+    def turn_generator(self) -> Generator[list[tuple[int, Node]]]:
+        self.drone_allocation()
         turn = 1
         while turn in self.timeline.keys():
-            print(f"\nTurn {turn}:")
+            drone_stat: list[tuple[int, Node]] = []
             for node in self.timeline[turn].keys():
                 for drone in self.timeline[turn][node]:
                     if (node in self.timeline[turn - 1]
                        and drone in self.timeline[turn - 1][node]):
                         continue
-                    print(f"D{drone}-{node.name} ", end="")
+                    drone_stat.append((drone, node))
+            yield drone_stat
             turn += 1

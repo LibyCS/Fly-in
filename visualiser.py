@@ -37,11 +37,7 @@ class Node():
             self.capacity = cast(int, data["metadata"]["max_drones"])
         self.connection: dict[tuple[str, str], int] = data["connection"]
         self.state = State.BLOCKED
-        self.f: int = 0
-        self.g: int = 0
-        self.h: int = 0
         self.children: list[Node] = []
-        self.parent: Node | None = None
 
 
 class Grid():
@@ -252,7 +248,7 @@ class DroneVisualiser():
     def update_drone_coords(self, coords: tuple[int]) -> list[tuple[int]]:
         x = coords[0] * self.scale[0]
         y = coords[1] * self.scale[1]
-        size = 0.2 * self.scale[0]
+        size = 0.2
         diamond = [(x, y + size),
                    (x + size, y),
                    (x, y - size),

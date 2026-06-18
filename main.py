@@ -1,7 +1,6 @@
 import sys
 from parser import parse
 from visualiser import Grid, GridVisualiser, DroneVisualiser
-from pathfinding import Pathfinding
 
 
 def main() -> None:
@@ -22,6 +21,7 @@ def main() -> None:
     layout = Grid(data)
     plot, scale = GridVisualiser(layout).visualise_layout()
     DroneVisualiser(layout, plot, scale).visualise()
+
 
 if __name__ == "__main__":
     try:

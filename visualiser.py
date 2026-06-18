@@ -1,5 +1,5 @@
 from enum import IntEnum
-from typing import cast
+from typing import cast, Callable
 from parser import DataDict, Hub, Keys
 import time
 import textwrap
@@ -18,6 +18,20 @@ class State(IntEnum):
     BLOCKED = 1
 
 
+class Connection():
+    def __init__(self, connect1: Node, connect2: Node, capacity: int) -> None:
+        self.name = connect1.name + "-" + connect2.name
+        self.connect1 = connect1.name
+        self.connect2 = connect2.name
+        self.capacity = capacity
+        self.calculate_coords(connect1, connect2)
+
+    def calculate_coords(self, connect1: Node, connect2: Node) -> None:
+        x = (connect1.coords[0] + connect2.coords[0]) / 2
+        y = (connect1.coords[1] + connect2.coords[1]) / 2
+        self.coords = (x, y)
+
+
 class Node():
     def __init__(self, name: str, hub_type: str, data: Hub) -> None:
         """
@@ -27,7 +41,7 @@ class Node():
         self.type: str = hub_type
         self.coords: tuple[int, int] = data["coords"]
         self.zone: str = "normal"
-        if "metatdata" in data.keys() and "zone" in data["metadata"]:
+        if "metadata" in data.keys() and "zone" in data["metadata"]:
             self.zone = cast(str, data["metadata"]["zone"])
         self.colour: (None | str) = None
         if "metadata" in data.keys() and "color" in data["metadata"]:
@@ -35,9 +49,16 @@ class Node():
         self.capacity: int = 50
         if "metadata" in data.keys() and "max_drones" in data["metadata"]:
             self.capacity = cast(int, data["metadata"]["max_drones"])
-        self.connection: dict[tuple[str, str], int] = data["connection"]
+        self.old_connection = data["connection"]
+        self.connection: list[Connection] = []
         self.state = State.BLOCKED
         self.children: list[Node] = []
+
+    def connection_converter(self, find: Callable) -> None:
+        for node1, node2 in self.old_connection.keys():
+            new_connect = Connection(find(node1), find(node2),
+                                     self.old_connection[(node1, node2)])
+            self.connection.append(new_connect)
 
 
 class Grid():
@@ -69,6 +90,8 @@ class Grid():
                 hub_type = "hub"
                 new_node = Node(name, hub_type, hub)
             self.grid.append(new_node)
+        for node in self.grid:
+            node.connection_converter(self.find_node)
         self.add_child_parent_nodes()
 
     def find_node(self, name: str) -> Node:
@@ -91,11 +114,11 @@ class Grid():
         queue.append(self.start)
         while queue:
             curr_node = queue[0]
-            for connection in curr_node.connection.keys():
-                if connection[0] != curr_node.name:
-                    target_node = self.find_node(connection[0])
+            for connection in curr_node.connection:
+                if connection.connect1 != curr_node.name:
+                    target_node = self.find_node(connection.connect1)
                 else:
-                    target_node = self.find_node(connection[1])
+                    target_node = self.find_node(connection.connect2)
                 curr_node.children.append(target_node)
                 if target_node not in completed:
                     queue.append(target_node)
@@ -114,7 +137,7 @@ class GridVisualiser():
         self.find_node = layout.find_node
         self.drones = layout.drones
         self.create_boundaries()
-    
+
     def create_boundaries(self) -> None:
         """
         Creates boundaries for the graph
@@ -170,15 +193,15 @@ class GridVisualiser():
         """
         visited: list[Node] = [self.start, self.end]
         queue: list[Node] = []
-        for connect in self.start.connection.keys():
-            child = self.find_node(connect[1])
+        for connect in self.start.connection:
+            child = self.find_node(connect.connect2)
             self.draw_arrow(self.start, child)
             queue.append(child)
             visited.append(child)
         while len(queue) > 0:
             current = queue[0]
-            for relation_hubs in current.connection.keys():
-                next_hub = self.find_node(relation_hubs[1])
+            for relation_hubs in current.connection:
+                next_hub = self.find_node(relation_hubs.connect2)
                 if next_hub == current:
                     continue
                 self.draw_arrow(current, next_hub)
@@ -188,7 +211,7 @@ class GridVisualiser():
             visited.append(current)
         plt.savefig("visualiser.png")
 
-    def visualise_layout(self) -> Axes:
+    def visualise_layout(self) -> tuple[Axes, list[int]]:
         """
         prints the layout using terminal ascii
         """
@@ -234,6 +257,7 @@ class GridVisualiser():
         self.connections()
         return axes, self.scale
 
+
 class DroneVisualiser():
     def __init__(self, layout: Grid, axes: Axes, scale: list[int]) -> None:
         from pathfinding import Pathfinding
@@ -245,34 +269,36 @@ class DroneVisualiser():
         self.start_y = layout.start.coords[1] * scale[1]
         self.time = 1
 
-    def update_drone_coords(self, coords: tuple[int]) -> list[tuple[int]]:
+    def update_drone_coords(self, coords: tuple[int, int] | tuple[float, float]
+                            ) -> list[tuple[float, float]]:
         x = coords[0] * self.scale[0]
         y = coords[1] * self.scale[1]
-        size = 0.2
-        diamond = [(x, y + size),
-                   (x + size, y),
-                   (x, y - size),
-                   (x - size, y)]
+        size_x = size_y = 0.2
+        if self.scale[0] == 10:
+            size_x = 2
+        diamond = [(x, y + size_y),
+                   (x + size_x, y),
+                   (x, y - size_y),
+                   (x - size_x, y)]
         return diamond
 
     def create_drones(self) -> None:
         starting_drone = self.update_drone_coords((self.start_x,
                                                    self.start_y))
-        self.drones: list[tuple[Polygon, Text]] = ([None]
-                                                   * (self.nb_drones + 1))
-        for drone in range(1, self.nb_drones + 1):
+        self.drones: list[tuple[Polygon, Text]] = []
+        for drone in range(0, self.nb_drones):
             template_drone = Polygon(starting_drone, color="grey",
                                      zorder=(10 + drone))
             self.axes.add_patch(template_drone)
             label = self.axes.text(self.start_x, self.start_y,
-                                   "D" + str(drone), ha="center", va="center",
-                                   zorder=(11 + drone))
-            self.drones[drone] = (template_drone, label)
+                                   "D" + str(drone + 1), ha="center",
+                                   va="center", zorder=(11 + drone))
+            self.drones.append((template_drone, label))
         plt.savefig("visualiser.png")
         time.sleep(self.time)
 
-    def move_drone(self, drone_stats: tuple[Polygon, Text], node: Node
-                   ) -> None:
+    def move_drone(self, drone_stats: tuple[Polygon, Text],
+                   node: Node | Connection) -> None:
         drone, label = drone_stats
         scaled_coords = (node.coords[0] * self.scale[0],
                          node.coords[1] * self.scale[1])
@@ -289,7 +315,7 @@ class DroneVisualiser():
                 incoming_drone = next(self.turnorder_gen)
                 for drone, node in incoming_drone:
                     any_moved = True
-                    self.move_drone(self.drones[drone], node)
+                    self.move_drone(self.drones[drone - 1], node)
                     time.sleep(0.5)
                 if any_moved is True:
                     print()

@@ -1,68 +1,135 @@
-from visualiser import Grid, Node
+from visualiser import Grid, Node, Connection
 import math
-from typing import cast
 from collections.abc import Generator
+from dataclasses import dataclass
 
-class AStarStates():
-    def __init__(self, timeline: dict[int, dict[Node, list[int]]], end: Node
-                 ) -> None:
-        self.end: Node = end
-        self.open: list[Node] = []
-        self.closed: list[Node] = []
-        self.reservation: dict[tuple[Node, int]] = {}
-        if timeline:
-            self.convert_timeline_to_reservation(timeline)
-        self.f: dict[str, int] = {}
-        self.h: dict[str, int] = {}
-        self.g: dict[str, int] = {}
-        self.parent: dict[tuple[Node, int], tuple[Node, int]] = {}
 
-    def convert_timeline_to_reservation(self, timeline: dict[int, dict[Node, list[int]]]
-                                        ) -> None:
-        for turn in timeline.keys():
-            for node in timeline[turn]:
-                self.reservation[(node, turn)] = len(timeline[turn][node])
+@dataclass
+class NodeState():
+    node: Node
+    turn: int = 0
+    end: Node | None = None
+    f: int = 0
+    h: int = 0
+    g: int = 0
 
-    def find_best_node_f(self) -> Node | None:
-        if not self.open:
-            return None
-        lowest_f = self.open[0]
-        for node in self.open[1:]:
-            if self.f[node.name] < self.f[lowest_f.name]:
-                lowest_f = node
-        if (self.end.name in self.f.keys()
-           and self.f[self.end.name] == self.f[lowest_f.name]):
-            lowest_f = self.end
-        self.open.remove(lowest_f)
-        return lowest_f
-
-    def estimated_moves_to_goal(self, node: Node) -> int:
+    def estimated_moves_to_goal(self) -> int:
         """
         Calculates the distance based off the current nodes
         coords vs the goal coords using euclidian distance
         """
-        h = round(math.sqrt((node.coords[0] - self.end.coords[0]) ** 2
-                            + (node.coords[1] - self.end.coords[1]) ** 2))
+        if self.end is None:
+            return 0
+        h = round(math.sqrt((self.node.coords[0] - self.end.coords[0]) ** 2
+                            + (self.node.coords[1] - self.end.coords[1]) ** 2))
         return h
 
-    def update_fgh_values(self, node: Node, parent: Node | None = None
+    def update_fgh_values(self, parent: NodeState | None = None
                           ) -> None:
         """
         Finds the efficency of that node to get to it from start
         aswell as to get to goal
         """
-        # parent.g + 1 for now need to make a working version
-        if parent is not None:
-            self.g[node.name] = g = self.g[parent.name] + 1
+        if self.node.zone == "priority":
+            weight = 1
+        elif self.node.zone == "resticted":
+            weight = 3
         else:
-            self.g[node.name] = g = 0
-        self.h[node.name] = h = self.estimated_moves_to_goal(node)
-        self.f[node.name] = g + h
+            weight = 2
+        if parent is not None:
+            self.g = parent.g + weight
+        else:
+            self.g = 0
+        self.h = self.estimated_moves_to_goal()
+        self.f = self.g + self.h
 
-    def check_node_capacity(self, node: Node, arrival: int) -> bool:
-        if ((node, arrival) in self.reservation
-           and self.reservation[(node, arrival)]) == node.capacity:
+
+class AStarStates():
+    def __init__(self, timeline: dict[int, dict[Node | Connection, list[int]]],
+                 connect: dict[tuple[Connection, int], int], end: Node
+                 ) -> None:
+        self.end: Node = end
+        self.open: list[NodeState] = []
+        self.closed: list[NodeState] = []
+        self.node_reserve: dict[tuple[Node, int], int] = {}
+        self.connect_reserve: dict[tuple[Connection, int], int] = connect
+        if timeline:
+            self.timeline_to_reserve(timeline)
+        self.parent: dict[tuple[Node, int], tuple[Node, int]] = {}
+
+    def timeline_to_reserve(self, timeline: dict[int, dict[Node | Connection,
+                                                           list[int]]]
+                            ) -> None:
+        for turn in timeline.keys():
+            for node in timeline[turn]:
+                if isinstance(node, Connection):
+                    connect = node
+                    self.connect_reserve[(connect, turn)
+                                         ] = len(timeline[turn][connect])
+                else:
+                    self.node_reserve[(node, turn)] = len(timeline[turn][node])
+
+    def find_best_node_f(self) -> NodeState | None:
+        if not self.open:
+            return None
+        if not self.open:
+            raise ValueError("Lost a value")
+        nodes = self.open
+        lowest_f = nodes[0]
+        for node in nodes[1:]:
+            if node.f < lowest_f.f:
+                lowest_f = node
+            if (node.f == lowest_f.f and node.g < lowest_f.g):
+                lowest_f = node
+        for node in self.open:
+            if self.end == node.node and node.f == lowest_f.f:
+                lowest_f = node
+        self.open.remove(lowest_f)
+        return (lowest_f)
+
+    def check_node_capacity(self, node_state: NodeState) -> bool:
+        node = node_state.node
+        turn = node_state.turn
+        if ((node, turn) in self.node_reserve
+           and self.node_reserve[(node, turn)]) == node.capacity:
+            print(f"{node.name} has reached capacity")
             return False
+        if (node, turn) in self.node_reserve:
+            print(node.name, " has", self.node_reserve[(node, turn)], "drones")
+        else:
+            print(node.name, "has no drones")
+        return True
+
+    @staticmethod
+    def find_shared_connect(src: Node, dest: Node) -> Connection | None:
+        for connect in src.connection:
+            if (connect.connect1 == dest.name
+               or connect.connect2 == dest.name):
+                return connect
+        return None
+
+    def check_connect_capacity(self, src: NodeState, dest: NodeState) -> bool:
+        print(src.node.name, dest.node.name)
+        connect = self.find_shared_connect(src.node, dest.node)
+        if connect is None:
+            raise ValueError("Error: Could not find shared connetion")
+        if (dest.node.zone == "restricted"
+           and (connect, dest.turn - 1) in self.connect_reserve.keys()):
+            print("found restricted")
+            print(connect.name, dest.turn - 1)
+            if self.connect_reserve[(connect, dest.turn - 1)
+                                    ] == connect.capacity:
+                print("Found restircted but over capacity for link")
+                return False
+        for conn, turn in self.connect_reserve.keys():
+            print(conn.name, turn)
+        if (connect, dest.turn) in self.connect_reserve.keys():
+            print(self.connect_reserve[(connect,dest.turn)])
+            print("Found a hit")
+            if self.connect_reserve[(connect, dest.turn)] == connect.capacity:
+                print("No restircted but capcity for link si full")
+                return False
+        print(connect.name, dest.turn, "passed")
         return True
 
 
@@ -75,85 +142,157 @@ class Pathfinding():
         self.end = grid.end
         self.grid = grid.grid
         self.drones = grid.drones
-        self.timeline: dict[int, dict[Node, list[int]]] = {}
+        self.timeline: dict[int, dict[Node | Connection, list[int]]] = {}
+        self.shared_connection = AStarStates.find_shared_connect
+        self.reserve_connects: dict[tuple[Connection, int], int] = {}
 
-    def a_star(self) -> list[Node]:
+    def a_star(self) -> list[tuple[Node | Connection, int]]:
         """
         Search algorithm that finds the best path to get
         from start to goal
         """
-        state = AStarStates(self.timeline, self.end)
-        state.update_fgh_values(self.start)
-        state.open.append(self.start)
-        turn = 0
+        state = AStarStates(self.timeline, self.reserve_connects, self.end)
+        start = NodeState(node=self.start, turn=0, end=self.end)
+        start.update_fgh_values()
+        state.open.append(start)
         while state.open:
-            q = state.find_best_node_f()
-            print(q.name, "is the best node in the list")
-            if q.name == self.end.name:
+            best_found = state.find_best_node_f()
+            if best_found is None:
+                break
+            q = best_found
+            print(q.node.name, "is the best node in the list")
+            if q.node == self.end:
                 return self.trace_path(state.parent)
-            for child in q.children:
-                state.update_fgh_values(child, q)
-                if not state.check_node_capacity(child, turn + 1):
-                    print(child.name, "Capacity is full")
-                    continue
-                if any(node.name == child.name
-                       and state.g[node.name] <= state.g[child.name] for node in state.open):
-                    continue
-                if any(node.name == child.name
-                       and state.g[node.name] <= state.g[child.name] for node in state.closed):
-                    continue
+            for child_node in q.node.children:
+                print("\n", child_node.name)
+                c_turn = q.turn + 1
+                if child_node.zone == "restricted":
+                    c_turn += 1
                 else:
-                    print(child.name, turn + 1, q.name, turn)
-                    state.parent[(child, turn + 1)] = (q, turn)
-                    print("adding ", child.name)
-                    state.open.append(child)
-                state.closed.append(q)
-            turn += 1
-        print(turn)
+                    print(child_node.zone)
+                child = NodeState(node=child_node, turn=c_turn,
+                                  end=self.end)
+                child.update_fgh_values(q)
+                if child.node.zone == "blocked":
+                    continue
+                if any(node.node.name == child.node.name
+                       and node.turn == child.turn
+                       and node.g <= child.g for node in state.open):
+                    print("same but better child is in open")
+                    continue
+                if any(node.node.name == child.node.name
+                       and node.turn == child.turn
+                       and node.g <= child.g for node in state.closed):
+                    print("Already checked the same but better node")
+                    print([node.node.name for node in state.closed])
+                    continue
+                if (not state.check_node_capacity(child)
+                   or not state.check_connect_capacity(q, child)):
+                    print("Waiting due to capacity")
+                    wait = NodeState(node=q.node, turn=q.turn + 1,
+                                     end=self.end)
+                    wait.update_fgh_values(q)
+                    state.open.append(wait)
+                    state.parent[(wait.node, wait.turn)] = (q.node, q.turn)
+                    continue
+                print("parent[(", child.node.name, child.turn, ")] =  ",
+                     "(", q.node.name, q.turn, ")")
+                state.parent[(child.node, child.turn)] = (q.node, q.turn)
+                print("adding", child.node.name, "to queue")
+                state.open.append(child)
+            print("adding", q.node.name, " to closed")
+            state.closed.append(q)
         raise ValueError("Error: Could not find goal")
 
-    def trace_path(self, parent_list: dict[tuple[Node, int], tuple[Node, int]]) -> list[Node]:
-        pathway = []
+    def trace_path(self, parent_list: dict[tuple[Node, int], tuple[Node, int]]
+                   ) -> list[tuple[Node | Connection, int]]:
+        pathway: list[tuple[Node | Connection, int]] = []
         node = self.end
         for node, turn in parent_list.keys():
             if node.name == self.end.name:
-                pathway.append(node)
+                pathway.append((node, turn))
                 child_node = node
                 child_turn = turn
                 child = (child_node, child_turn)
         while child in parent_list.keys():
             parent = parent_list[child]
-            for i in range(parent[1], child[1]):
-                pathway.append(parent[0])
-                i += 1
+            if child[0].zone == "restricted":
+                connect = self.shared_connection(parent[0], child[0])
+                if connect is not None:
+                    pathway.append((connect, child[1] - 1))
+                pathway.append(parent)
+            else:
+                for i in range(parent[1], child[1]):
+                    pathway.append(parent)
+                    i += 1
             child = parent
         pathway = list(reversed(pathway))
         print("Pathfinder:")
-        print([node.name for node in pathway])
+        for node, turn in pathway:
+            print(node.name, turn, end="")
+        print()
         return (pathway)
 
-    def update_timeline(self, drone: int, path: list[Node]) -> None:
-        turn = 0
-        for node in path:
+    def update_connect_reserve(self,
+                               path: list[tuple[Node | Connection, int]]
+                               ) -> None:
+        previous = path[0][0]
+        for node, turn in path[1:]:
+            if isinstance(node, Node) and isinstance(previous, Node):
+                if node.name == previous.name:
+                    continue
+                connect = self.shared_connection(previous, node)
+                if connect is None:
+                    return
+                if (connect, turn) not in self.reserve_connects.keys():
+                    self.reserve_connects[(connect, turn)] = 1
+                else:
+                    self.reserve_connects[(connect, turn)] += 1
+                previous = node
+
+    def update_timeline(self, drone: int,
+                        path: list[tuple[Node | Connection, int]]) -> None:
+        compared_turn = 0
+        for node, turn in path:
+            if isinstance(node, Connection):
+                connect = node
+                if turn not in self.timeline.keys():
+                    self.timeline[turn] = {}
+                if connect not in self.timeline[turn].keys():
+                    self.timeline[turn][connect] = []
+                self.timeline[turn][connect].append(drone)
+                compared_turn = turn + 1
+                continue
+            elif compared_turn != turn:
+                print(compared_turn, "vs", turn)
+                for i in range(compared_turn, turn):
+                    if i not in self.timeline.keys():
+                        self.timeline[i] = {}
+                    if node not in self.timeline[i].keys():
+                        self.timeline[i][node] = []
+                    self.timeline[i][node].append(drone)
+                compared_turn = turn
             if turn not in self.timeline.keys():
                 self.timeline[turn] = {}
             if node not in self.timeline[turn].keys():
                 self.timeline[turn][node] = []
             self.timeline[turn][node].append(drone)
-            turn += 1
+            compared_turn += 1
 
     def drone_allocation(self) -> None:
         drone = 1
         while drone <= self.drones:
             print("\ndrone", drone)
-            self.update_timeline(drone, self.a_star())
+            path = self.a_star()
+            self.update_timeline(drone, path)
+            self.update_connect_reserve(path)
             drone += 1
 
-    def turn_generator(self) -> Generator[list[tuple[int, Node]]]:
+    def turn_generator(self) -> Generator[list[tuple[int, Node | Connection]]]:
         self.drone_allocation()
         turn = 1
         while turn in self.timeline.keys():
-            drone_stat: list[tuple[int, Node]] = []
+            drone_stat: list[tuple[int, Node | Connection]] = []
             for node in self.timeline[turn].keys():
                 for drone in self.timeline[turn][node]:
                     if (node in self.timeline[turn - 1]

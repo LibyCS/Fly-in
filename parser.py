@@ -287,7 +287,7 @@ def build_connections(data: DataDict, info: str, meta: (None | str) = None
                          " one of the hubs")
     if hub1 == hub2:
         raise ValueError("Cannot make a connection with itself")
-    capacity = 1
+    capacity = 500
     if meta:
         value_index = meta.find("=")
         value = meta[value_index + 1:]

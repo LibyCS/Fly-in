@@ -13,34 +13,24 @@ class NodeState():
     h: int = 0
     g: int = 0
 
-    def estimated_moves_to_goal(self) -> int:
-        """
-        Calculates the distance based off the current nodes
-        coords vs the goal coords using euclidian distance
-        """
-        if self.end is None:
-            return 0
-        h = round(math.sqrt((self.node.coords[0] - self.end.coords[0]) ** 2
-                            + (self.node.coords[1] - self.end.coords[1]) ** 2))
-        return h
-
-    def update_fgh_values(self, parent: NodeState | None = None
+    def update_fgh_values(self, hops: dict[Node, int], parent: NodeState | None = None
                           ) -> None:
         """
         Finds the efficency of that node to get to it from start
         aswell as to get to goal
         """
         if self.node.zone == "priority":
-            weight = 1
+            weight = 0.8
         elif self.node.zone == "resticted":
             weight = 3
         else:
-            weight = 2
+            weight = 1
         if parent is not None:
             self.g = parent.g + weight
         else:
             self.g = 0
-        self.h = self.estimated_moves_to_goal()
+        print(self.node.name)
+        self.h = hops[self.node]
         self.f = self.g + self.h
 
 
@@ -116,20 +106,16 @@ class AStarStates():
         if (dest.node.zone == "restricted"
            and (connect, dest.turn - 1) in self.connect_reserve.keys()):
             print("found restricted")
-            print(connect.name, dest.turn - 1)
             if self.connect_reserve[(connect, dest.turn - 1)
                                     ] == connect.capacity:
                 print("Found restircted but over capacity for link")
                 return False
-        for conn, turn in self.connect_reserve.keys():
-            print(conn.name, turn)
         if (connect, dest.turn) in self.connect_reserve.keys():
             print(self.connect_reserve[(connect,dest.turn)])
             print("Found a hit")
             if self.connect_reserve[(connect, dest.turn)] == connect.capacity:
-                print("No restircted but capcity for link si full")
+                print("Not restircted but capcity for link is full")
                 return False
-        print(connect.name, dest.turn, "passed")
         return True
 
 
@@ -141,10 +127,37 @@ class Pathfinding():
         self.start = grid.start
         self.end = grid.end
         self.grid = grid.grid
+        self.find_node = grid.find_node
         self.drones = grid.drones
         self.timeline: dict[int, dict[Node | Connection, list[int]]] = {}
         self.shared_connection = AStarStates.find_shared_connect
         self.reserve_connects: dict[tuple[Connection, int], int] = {}
+        self.hops = self.find_hops_to_goal()
+
+    def find_hops_to_goal(self):
+        hops: dict[Node, int] = {}
+        hops[self.end] = 0
+        queue: list[Node] = []
+        queue.append(self.end)
+        while queue:
+            node = queue[0]
+            queue.remove(node)
+            for connects in node.connection:
+                if connects.connect1 != node.name:
+                    connected_node = connects.connect1
+                else:
+                    connected_node = connects.connect2
+                new_node = self.find_node(connected_node)
+                if new_node not in hops.keys():
+                    weight = 1
+                    if node.zone == "restricted":
+                        weight = 3
+                    elif node.zone == "priority":
+                        weight = 0.8
+                    hops[new_node] = hops[node] + weight
+                    queue.append(new_node)
+        return hops
+
 
     def a_star(self) -> list[tuple[Node | Connection, int]]:
         """
@@ -153,7 +166,7 @@ class Pathfinding():
         """
         state = AStarStates(self.timeline, self.reserve_connects, self.end)
         start = NodeState(node=self.start, turn=0, end=self.end)
-        start.update_fgh_values()
+        start.update_fgh_values(self.hops)
         state.open.append(start)
         while state.open:
             best_found = state.find_best_node_f()
@@ -166,15 +179,13 @@ class Pathfinding():
             for child_node in q.node.children:
                 print("\n", child_node.name)
                 c_turn = q.turn + 1
+                if child_node.zone == "blocked":
+                    continue
                 if child_node.zone == "restricted":
                     c_turn += 1
-                else:
-                    print(child_node.zone)
                 child = NodeState(node=child_node, turn=c_turn,
                                   end=self.end)
-                child.update_fgh_values(q)
-                if child.node.zone == "blocked":
-                    continue
+                child.update_fgh_values(self.hops, q)
                 if any(node.node.name == child.node.name
                        and node.turn == child.turn
                        and node.g <= child.g for node in state.open):
@@ -184,14 +195,13 @@ class Pathfinding():
                        and node.turn == child.turn
                        and node.g <= child.g for node in state.closed):
                     print("Already checked the same but better node")
-                    print([node.node.name for node in state.closed])
                     continue
                 if (not state.check_node_capacity(child)
                    or not state.check_connect_capacity(q, child)):
                     print("Waiting due to capacity")
                     wait = NodeState(node=q.node, turn=q.turn + 1,
                                      end=self.end)
-                    wait.update_fgh_values(q)
+                    wait.update_fgh_values(self.hops, q)
                     state.open.append(wait)
                     state.parent[(wait.node, wait.turn)] = (q.node, q.turn)
                     continue
@@ -239,6 +249,8 @@ class Pathfinding():
         previous = path[0][0]
         for node, turn in path[1:]:
             if isinstance(node, Node) and isinstance(previous, Node):
+                if node.zone == "restricted":
+                    turn -= 1
                 if node.name == previous.name:
                     continue
                 connect = self.shared_connection(previous, node)
@@ -264,7 +276,6 @@ class Pathfinding():
                 compared_turn = turn + 1
                 continue
             elif compared_turn != turn:
-                print(compared_turn, "vs", turn)
                 for i in range(compared_turn, turn):
                     if i not in self.timeline.keys():
                         self.timeline[i] = {}

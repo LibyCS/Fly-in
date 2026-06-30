@@ -98,12 +98,12 @@ connection: waypoint2-goal"""
                             ]
         exp_connects = [{("start", "waypoint1"): 3},
                         {("start", "waypoint1"): 3,
-                         ("waypoint1", "waypoint2"): 1,
-                         ("waypoint1", "goal"): 1},
-                        {("waypoint1", "waypoint2"): 1,
-                         ("waypoint2", "goal"): 1},
-                        {("waypoint1", "goal"): 1,
-                         ("waypoint2", "goal"): 1}
+                         ("waypoint1", "waypoint2"): 500,
+                         ("waypoint1", "goal"): 500},
+                        {("waypoint1", "waypoint2"): 500,
+                         ("waypoint2", "goal"): 500},
+                        {("waypoint1", "goal"): 500,
+                         ("waypoint2", "goal"): 500}
                         ]
         exp_hubs: list[tuple[Hub, str]] = []
         for i in range(0, len(hub_names)):
@@ -185,11 +185,16 @@ connection: waypoint2-goal"""
         print("Test 3: No nb_drone value - Expecting nb_drones Value Error")
         no_drone_value = self.edit_line(self.DEFAULT, 1, "nb_drones:")
         self.error_testing(no_drone_value, "nb_drone's value")
-        print("Test 4: End with too little capacit - Expecting drones Error")
-        end_err = self.edit_line(self.DEFAULT, 6, "end_hub: end 3 0"
+        print("Test 4: End with too little capacity - Passes")
+        end_cap = self.edit_line(self.DEFAULT, 6, "end_hub: goal 3 0"
                                  " [max_drones=1]")
-        self.error_testing(end_err, "Zone is too restricted to handle all "
-                           "drones in start/end hub")
+        self.make_data(end_cap)
+        print("[OK]")
+        print("Test 5: Nb_drones is not first - Passes")
+        first = self.edit_line(self.DEFAULT, 1, "start_hub: start 0 0"
+                               " [color=green max_drones=3]")
+        first = self.edit_line(first, 3, "nb_drones: 2")
+        self.error_testing(first, "First line must be the number of drones")
 
     def test_hub_name(self) -> None:
         """
@@ -319,30 +324,36 @@ connection: waypoint2-goal"""
         print("Test 5: Wrong Meta Value - Expecting Metakey Value Error")
         wrong_value = self.edit_line(self.DEFAULT, 3,
                                      "start_hub: start 0 0 "
+                                     "[color=green zone=blocked]")
+        self.error_testing(wrong_value, "can not be a blocked zone")
+        print("Test 6: Start is Restricted - Passes")
+        restr_start = self.edit_line(self.DEFAULT, 3,
+                                     "start_hub: start 0 0 "
                                      "[color=green zone=restricted]")
-        self.error_testing(wrong_value, "can only have a normal zone")
-        print("Test 6: Same meta Key given - Expecting Meta Error")
+        self.make_data(restr_start)
+        print("[OK]")
+        print("Test 7: Same meta Key given - Expecting Meta Error")
         same_meta = self.edit_line(self.DEFAULT, 3,
                                    "start_hub: start 0 0 "
                                    "[color=green color=blue]")
         self.error_testing(same_meta, "Duplicate tag")
-        print("Test 7: 4 Meta Keys given - Expecting Meta Error")
+        print("Test 8: 4 Meta Keys given - Expecting Meta Error")
         four_keys = self.edit_line(self.DEFAULT, 3,
                                    "start_hub: start 0 0 "
                                    "[color=green zone=restricted"
                                    " capacity=3 max_link_capacity=4]")
         self.error_testing(four_keys, "Too many tags")
-        print("Test 8: Invalid Zone - Expecting Meta Error")
+        print("Test 9: Invalid Zone - Expecting Meta Error")
         zone_error = self.edit_line(self.DEFAULT, 3,
                                     "start_hub: start 0 0 "
                                     "[color=green zone=norm]")
         self.error_testing(zone_error, "Unknown zone type")
-        print("Test 9: Missing Bracket - Expecting Meta Error")
+        print("Test 10: Missing Bracket - Expecting Meta Error")
         brackets_error = self.edit_line(self.DEFAULT, 3,
                                         "start_hub: start 0 0 "
                                         "[color=green zone=normal")
         self.error_testing(brackets_error, "Invalid number of arguments")
-        print("Test 10: Meta before hub - Expecting Meta Error")
+        print("Test 11: Meta before hub - Expecting Meta Error")
         meta_before_hub = self.edit_line(self.DEFAULT, 3,
                                          "[color=green zone=normal]"
                                          "start_hub: start 0 0 ")

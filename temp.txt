@@ -96,4 +96,3 @@ connection: final_gate3-goal [max_link_capacity=2]
 # Emergency bypass (very expensive)
 connection: overflow2-conv_normal1
 connection: priority_hub-conv_priority1
-

@@ -1,4 +1,3 @@
-from enum import IntEnum
 from typing import cast, Callable
 from parser import DataDict, Hub, Keys
 import time
@@ -10,16 +9,17 @@ from matplotlib.ticker import MultipleLocator
 from matplotlib.patches import Polygon
 
 
-class State(IntEnum):
-    """
-    Sets open and blocked states
-    """
-    OPEN = 0
-    BLOCKED = 1
-
-
 class Connection():
+    """
+    Creates a connection between 2 nodes with a capacity
+    Used to make connection capacity and visualisation of the drone
+    on the connection easier to parse and understand.
+    """
     def __init__(self, connect1: Node, connect2: Node, capacity: int) -> None:
+        """
+        Sets the name of the connection to be the 2 nodes names combined
+        and sets the capacity of the connection to be the capacity given
+        """
         self.name = connect1.name + "-" + connect2.name
         self.connect1 = connect1.name
         self.connect2 = connect2.name
@@ -27,12 +27,20 @@ class Connection():
         self.calculate_coords(connect1, connect2)
 
     def calculate_coords(self, connect1: Node, connect2: Node) -> None:
+        """
+        Calculates the coords of the connection to be the average of
+        the 2 nodes coords, returning a tuple of x, y
+        """
         x = (connect1.coords[0] + connect2.coords[0]) / 2
         y = (connect1.coords[1] + connect2.coords[1]) / 2
         self.coords = (x, y)
 
 
 class Node():
+    """
+    Creates a node with a name, type, coords, zone, colour, capacity,
+    connection and children.
+    """
     def __init__(self, name: str, hub_type: str, data: Hub) -> None:
         """
         Initialises node with these following variables.
@@ -51,10 +59,12 @@ class Node():
             self.capacity = cast(int, data["metadata"]["max_drones"])
         self.old_connection = data["connection"]
         self.connection: list[Connection] = []
-        self.state = State.BLOCKED
         self.children: list[Node] = []
 
     def connection_converter(self, find: Callable) -> None:
+        """
+        Converts the old connection dictionary to a list of Connection objects
+        """
         for node1, node2 in self.old_connection.keys():
             new_connect = Connection(find(node1), find(node2),
                                      self.old_connection[(node1, node2)])
@@ -62,6 +72,11 @@ class Node():
 
 
 class Grid():
+    """
+    A class that creates a grid of nodes from the parsed data
+    aswell as keeping track of the start, end, hub nodes,
+    and the number of drones.
+    """
     def __init__(self, data: DataDict) -> None:
         """
         Creates an empty grid within row and columns limits
@@ -74,6 +89,9 @@ class Grid():
         self.drones = data["nb_drones"]
 
     def create_grid(self, data: DataDict) -> None:
+        """
+        Creates a grid of nodes from the parsed data
+        """
         start = data[Keys.START_HUB.value]
         end = data[Keys.END_HUB.value]
         all_hubs = start | end | data[Keys.HUB.value]
@@ -127,6 +145,10 @@ class Grid():
 
 
 class GridVisualiser():
+    """
+    A class that visualises the grid of nodes and connections
+    using matplotlib, and saves the visualisation as an image.
+    """
     def __init__(self, layout: Grid) -> None:
         """
         Sets variables needed to create the visualiser
@@ -259,7 +281,18 @@ class GridVisualiser():
 
 
 class DroneVisualiser():
+    """
+    A class that visualises the drones moving through the
+    grid of nodes and connections
+    using matplotlib, and saves the visualisation as an image.
+    """
     def __init__(self, layout: Grid, axes: Axes, scale: list[int]) -> None:
+        """
+        Sets variables needed to create the visualiser
+        imports pathfinding to avoid circular import issues
+        and creates a turnorder generator to get the timeline of
+        drones at each turn.
+        """
         from pathfinding import Pathfinding
         self.turnorder_gen = Pathfinding(layout).turn_generator()
         self.nb_drones = layout.drones
@@ -271,11 +304,20 @@ class DroneVisualiser():
 
     def update_drone_coords(self, coords: tuple[int, int] | tuple[float, float]
                             ) -> list[tuple[float, float]]:
+        """
+        Takes in the drone coords and adding the padding
+        to create a diamond shape to be used to visualise the drone
+        on the grid.
+        Returns a list of tuples of the diamond shape coords
+        to be used to create a Polygon object.
+        """
         x = coords[0] * self.scale[0]
         y = coords[1] * self.scale[1]
         size_x = size_y = 0.2
-        if self.scale[0] == 10:
+        if self.scale[0] >= 10:
             size_x = 2
+        if self.scale[0] >= 15:
+            size_x = 5
         diamond = [(x, y + size_y),
                    (x + size_x, y),
                    (x, y - size_y),
@@ -283,6 +325,10 @@ class DroneVisualiser():
         return diamond
 
     def create_drones(self) -> None:
+        """
+        Creates the drones on the grid at the start hub coords
+        and saves the visualisation as an image.
+        """
         starting_drone = self.update_drone_coords((self.start_x,
                                                    self.start_y))
         self.drones: list[tuple[Polygon, Text]] = []
@@ -299,6 +345,11 @@ class DroneVisualiser():
 
     def move_drone(self, drone_stats: tuple[Polygon, Text],
                    node: Node | Connection) -> None:
+        """
+        Moves the drone to the new node coords and updates the label
+        so that the label moves with the drone,
+        saves the visualisation as an image.
+        """
         drone, label = drone_stats
         scaled_coords = (node.coords[0] * self.scale[0],
                          node.coords[1] * self.scale[1])
@@ -308,6 +359,13 @@ class DroneVisualiser():
         plt.savefig("visualiser.png")
 
     def visualise(self) -> None:
+        """
+        This is the main visualisation function that creates the drones
+        and moves them through the grid of nodes and connections according
+        to the timeline generated by the turnorder generator.
+        It moves each drone to the next node or connection for each turn,
+        and saves the visualisation as an image after each move.
+        """
         self.create_drones()
         while True:
             any_moved = False

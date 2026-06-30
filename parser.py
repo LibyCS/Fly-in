@@ -71,7 +71,8 @@ def validate_hub(info: str) -> None:
                          f" for the hub {info}, please format it as such:\n"
                          "<hub type>: <hub name> <x> <y> ([metadata])\n"
                          "Hub type must either be start_hub, end_hub or hub\n"
-                         "Hub name may be whatever you choose\n"
+                         "Hub name may be whatever you choose but it cannot "
+                         "have a '-' or a space in it\n"
                          "x and y coords must be ints seperated by spaces\n"
                          "Metadata is optional but must have square brackets")
     validate_name(name)
@@ -101,6 +102,10 @@ def validate_connect(info: str) -> None:
 
 
 def check_isolated_node(data: DataDict) -> None:
+    """
+    Checks for any hubs that have no connections
+    and raises an error if found
+    """
     all_types = {Keys.START_HUB, Keys.END_HUB, Keys.HUB}
     for hub_type in all_types:
         for hub in data[hub_type.value]:
@@ -110,6 +115,9 @@ def check_isolated_node(data: DataDict) -> None:
 
 
 def check_start_end(data: DataDict) -> None:
+    """
+    Checks that there is a start and end hub in the data dictionary
+    """
     if not data[Keys.START_HUB.value]:
         raise ValueError("Error: No start hub was found")
     elif not data[Keys.END_HUB.value]:
@@ -193,9 +201,8 @@ def validate_meta_hub(zone: str, metadata: str) -> None:
                 raise ValueError(f"{zone} capacity given was {meta[data]}"
                                  ", must be >= 1")
         if (zone in (Keys.START_HUB, Keys.END_HUB)
-           and data == "zone" and meta[data] != "normal"):
-            raise ValueError(f"'{zone}' can only have a"
-                             " normal zone")
+           and data == "zone" and meta[data] == "blocked"):
+            raise ValueError(f"'{zone}' can not be a blocked zone")
 
 
 def validate_meta_connect(metadata: str) -> None:
@@ -258,10 +265,8 @@ def build_hub(data: DataDict, zone: Keys, info: str, meta: (None | str) = None
             else:
                 meta_dict[key] = value
         if ((zone in (Keys.START_HUB, Keys.END_HUB))
-           and "max_drones" in meta_dict.keys() and
-           int(meta_dict["max_drones"]) < data["nb_drones"]):
-            raise ValueError("Zone is too restricted to handle"
-                             " all drones in start/end hub")
+           and "max_drones" in meta_dict.keys()):
+            meta_dict["max_drones"] == 500
         hub["metadata"] = meta_dict
     hub["connection"] = {}
     hubs[name] = hub
@@ -314,6 +319,11 @@ def build_connections(data: DataDict, info: str, meta: (None | str) = None
 
 
 def extraction(line: str, data: DataDict, connect_nb: int) -> None:
+    """
+    Takes in a line from the config file and extracts the zone and info
+    and calls the neccessary functions to validate and build the
+    data dictionary or hubs or connection
+    """
     try:
         zone, info = map(str.strip, line.split(":", 1))
     except ValueError:
@@ -333,13 +343,13 @@ def extraction(line: str, data: DataDict, connect_nb: int) -> None:
             validate_meta_hub(zone, meta)
     if zone == "nb_drones":
         data["nb_drones"] = int(info)
+    elif data["nb_drones"] == 0:
+        raise ValueError("First line must be the number of"
+                         " drones, defined as 'nb_drones: <number>'")
     elif zone == "connection":
         connect_nb += 1
         build_connections(data, info, meta)
     else:
-        if "nb_drones" not in data.keys():
-            raise ValueError("First line must be the number of"
-                             " drones, defined as 'nb_drones: <number>'")
         if connect_nb != 0:
             raise ValueError("All hubs must first be created"
                              " before connections can be initialised.\n"

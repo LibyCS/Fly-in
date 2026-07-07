@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import cast, Callable
 from parser import DataDict, Hub, Keys
 import time

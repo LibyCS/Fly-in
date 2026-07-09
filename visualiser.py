@@ -267,8 +267,13 @@ class GridVisualiser():
             if node.colour != "rainbow":
                 axes.scatter(x, y, color=node.colour, s=size)
             else:
-                cmap = plt.get_cmap("rainbow")
-                axes.scatter(x, y, color=cmap(1), s=size)
+                rainbow = ["red", "orange", "yellow", "green", "blue",
+                           "indigo", "violet"]
+                increments = size / len(rainbow)
+                new_size = size
+                for colour in rainbow:
+                    axes.scatter(x, y, color=colour, s=new_size)
+                    new_size -= increments
             black_font = ["yellow", "cyan", "orange", "red"]
             if node.colour in black_font:
                 font_colour = "black"

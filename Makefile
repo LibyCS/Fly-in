@@ -6,7 +6,6 @@ venv:
 install: venv
 	venv/bin/python3 -m pip install -U flake8 mypy
 	venv/bin/python3 -m pip install matplotlib
-	venv/bin/python3 -m pip install pydantic
 	venv/bin/python3 -m pip install pytest
 
 run: venv

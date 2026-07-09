@@ -281,7 +281,10 @@ class GridVisualiser():
             axes.text(x, y, wrap_name, ha="center", va="center",
                       color=font_colour, fontsize=fsize)
             plt.savefig("visualiser.png")
-            time.sleep(0.3)
+            if self.scale[0] > 15:
+                time.sleep(0.3)
+            else:
+                time.sleep(0.1)
         self.connections()
         return axes, self.scale
 
@@ -300,13 +303,16 @@ class DroneVisualiser():
         drones at each turn.
         """
         from pathfinding import Pathfinding
-        self.turnorder_gen = Pathfinding(layout).turn_generator()
+        self.all_paths = Pathfinding(layout)
+        self.turnorder_gen = self.all_paths.turn_generator()
         self.nb_drones = layout.drones
         self.axes = axes
         self.scale = scale
         self.start_x = layout.start.coords[0] * scale[0]
         self.start_y = layout.start.coords[1] * scale[1]
-        self.time = 1
+        self.time = 0.5
+        if self.nb_drones > 10:
+            self.time = 0.1
 
     def update_drone_coords(self, coords: tuple[int, int] | tuple[float, float]
                             ) -> list[tuple[float, float]]:
@@ -373,16 +379,28 @@ class DroneVisualiser():
         and saves the visualisation as an image after each move.
         """
         self.create_drones()
+        turn = 1
+        turn_num_drones: dict[int, int] = {}
         while True:
             any_moved = False
             try:
                 incoming_drone = next(self.turnorder_gen)
+                turn_num_drones[turn] = 0
                 for drone, node in incoming_drone:
                     any_moved = True
                     self.move_drone(self.drones[drone - 1], node)
-                    time.sleep(0.5)
+                    time.sleep(self.time)
+                    turn_num_drones[turn] += 1
                 if any_moved is True:
                     print()
                 time.sleep(self.time)
             except StopIteration:
                 break
+            turn += 1
+        print("\nEvaluation:")
+        print("Total nummber of simulation turns:", turn - 1)
+        for turn, num_drones in turn_num_drones.items():
+            print(f"Turn {turn}: {num_drones} drones moved")
+        print("Average number of turns per drone:",
+              self.all_paths.total_turn / self.nb_drones)
+        print("Total path cost:", self.all_paths.total_path_cost)

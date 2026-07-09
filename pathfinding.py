@@ -176,6 +176,8 @@ class Pathfinding():
         self.timeline: dict[int, dict[Node | Connection, list[int]]] = {}
         self.shared_connection = AStarStates.find_shared_connect
         self.reserve_connects: dict[tuple[Connection, int], int] = {}
+        self.total_path_cost: float = 0.0
+        self.total_turn: int = 0
         self.hops = self.find_hops_to_goal()
 
     def find_hops_to_goal(self) -> dict[Node, float]:
@@ -233,6 +235,7 @@ class Pathfinding():
                 break
             q = best_found
             if q.node == self.end:
+                self.total_path_cost += q.g
                 return self.trace_path(state.parent)
             for child_node in q.node.children:
                 c_turn = q.turn + 1
@@ -294,6 +297,7 @@ class Pathfinding():
                     i += 1
             child = parent
         pathway = list(reversed(pathway))
+        self.total_turn += len(pathway) - 1
         return (pathway)
 
     def update_connect_reserve(self,

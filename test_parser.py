@@ -1,4 +1,4 @@
-from parser import parse, Hub, DataDict
+from parser import Parse, Hub, DataDict
 from io import StringIO
 import pytest
 
@@ -24,7 +24,7 @@ connection: waypoint2-goal"""
         therefore to avoid that we must remake the
         file each time
         """
-        return parse(StringIO(text))
+        return Parse().parse(StringIO(text))
 
     @staticmethod
     def edit_line(old_text: str, line_num: int, new_line: str) -> str:

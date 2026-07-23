@@ -79,3 +79,54 @@ Matplotlib also allows for easy set up of the plot, axes as well as labels that 
 
 Why matplotlib enhances the user experience:
 It allows for the user to visually see the drones move in real time as well as showing the nodes and their connections in a map that is scaled depending on how many elements are present.
+
+Input and Output:
+Please run the command to run the program:
+make run FILE=<map.txt> - where map.txt is the text file, if the text file is not in the root then make sure to add the pathway too.
+To view the visualiser you must immediately click on the newly created visualiser.png that appears in vscode. This may not work if you do not have automatic refresh when a file is updated.
+
+The map.txt file itself will follow the format as shown below:
+# Easy Level 1: Simple linear path
+nb_drones: 2
+
+start_hub: start 0 0 [color=green]
+hub: waypoint1 1 0 [color=blue]
+hub: waypoint2 2 0 [color=blue]
+end_hub: goal 3 0 [color=red]
+
+connection: start-waypoint1
+connection: waypoint1-waypoint2
+connection: waypoint2-goal
+
+- nb_drones must be the first actual line that is parsed through, if a hub is initilaised before it then the program fails.
+- Hubs must be of type start_hub, hub or end_hub.
+- All hub names must be unique and connot contain a "-" in its name.
+- Connections must be between hubs that have already been validated from the lines above
+- Accepted Metadata for hubs are zone, color, and max_drones. A hub can have up to 3 unique metadata tags seperated by spaces.
+- Accepted Metadata for connections is max_link_capacity only formated the same was as hub metadata.
+- There must be a start hub and an end hub, their capacities are considered infinite even if specified.
+
+Output example:
+D1-waypoint1 D2-waypoint1 
+D1-waypoint2 D2-waypoint2 
+D1-goal D2-goal
+
+Each line represents a turn passed, with the drone shown as D and its associated number, so D1 represents Drone 1.
+The drone is followed by the hub name which shows that in this turn the drone has moved to the specified hub.
+If the drone waits its turn or has reached the goal it will not be displayed in the output as it does not move.
+
+Evaluation example:
+Following the output will be the overall evalutaion of the program as shown below.
+
+Evaluation:
+Total nummber of simulation turns: 3
+Turn 1: 2 drones moved
+Turn 2: 2 drones moved
+Turn 3: 2 drones moved
+Average number of turns per drone: 3.0
+Total path cost: 6.0
+
+It shows the number of turns for all the drones to reach the goal.
+It shows the number of drones that have moved at each turn.
+Then shows the average number of turns taken per drone.
+The final line shows the tally of all drones pathcost.

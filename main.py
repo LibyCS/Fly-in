@@ -1,5 +1,5 @@
 import sys
-from parser import parse
+from parser import Parse
 from visualiser import Grid, GridVisualiser, DroneVisualiser
 
 
@@ -15,7 +15,7 @@ def main() -> None:
                                 " Please run as:\nmake run 'input.txt'")
     with open(sys.argv[1]) as f:
         try:
-            data = parse(f)
+            data = Parse().parse(f)
         except ValueError as message:
             raise ValueError(message)
     layout = Grid(data)

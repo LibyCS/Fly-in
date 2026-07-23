@@ -62,7 +62,7 @@ class Node():
         self.connection: list[Connection] = []
         self.children: list[Node] = []
 
-    def connection_converter(self, find: Callable) -> None:
+    def connection_converter(self, find: Callable[[str], "Node"]) -> None:
         """
         Converts the old connection dictionary to a list of Connection objects
         """

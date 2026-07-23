@@ -100,7 +100,7 @@ class AStarStates():
                 lowest_f = node
             elif (node.f == lowest_f.f and node.g < lowest_f.g):
                 lowest_f = node
-            elif (node.f == lowest_f and node.g == lowest_f.g
+            elif (node.f == lowest_f.f and node.g == lowest_f.g
                   and node.h < lowest_f.h):
                 lowest_f = node
         for node in self.open:

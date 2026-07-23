@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by <lces>>*
+*This project has been created as part of the 42 curriculum by <lces42>*
 
 **Description**
 A multi-agent drone pathfinding program on a grid, which uses A* search, reverse Breadth-First Search algorithms and reservation tables to sechedule all drones and keep track of them so that they all obey node capacities, conection capacities and zone rules as listed by the map text files.

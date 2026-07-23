@@ -19,11 +19,11 @@ clean:
 
 lint: venv
 	venv/bin/flake8 . --exclude venv
-	venv/bin/mypy . --exclude venv
+	venv/bin/mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs --exclude venv
 
 lint-strict: venv
 	venv/bin/flake8 . --exclude venv
-	venv/bin/mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs --exclude venv
+	venv/bin/mypy . --strict
 
 pytest: venv
 	venv/bin/pytest -s

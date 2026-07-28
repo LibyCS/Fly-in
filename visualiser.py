@@ -55,7 +55,7 @@ class Node():
         self.colour: (None | str) = None
         if "metadata" in data.keys() and "color" in data["metadata"]:
             self.colour = cast(str, data["metadata"]["color"])
-        self.capacity: int = 500
+        self.capacity: int = 1
         if "metadata" in data.keys() and "max_drones" in data["metadata"]:
             self.capacity = cast(int, data["metadata"]["max_drones"])
         self.old_connection = data["connection"]

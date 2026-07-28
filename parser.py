@@ -295,7 +295,7 @@ class Builder():
                              " one of the hubs")
         if hub1 == hub2:
             raise ValueError("Cannot make a connection with itself")
-        capacity = 500
+        capacity = 1
         if meta:
             value_index = meta.find("=")
             value = meta[value_index + 1:]
